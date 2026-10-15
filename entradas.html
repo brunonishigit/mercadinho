@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Entradas | Mercadinho Seu João</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/entradas.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-box">
+          <div class="brand-text">
+            <span class="brand-main">MERCADINHO</span>
+            <span class="brand-sub">do SEU JOÃO</span>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="Menu principal">
+          <button class="nav-item" type="button" data-link="painel.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>
+            </span>
+            <span>Painel</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="produtos.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M5 8.5V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5"/><path d="M9 11h6"/><path d="M9 15h6"/><path d="M8 4h8l2 4.5H6L8 4Z"/></svg>
+            </span>
+            <span>Produtos</span>
+          </button>
+
+          <button class="nav-item active" type="button">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 8.5V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8v3.7"/><path d="M7 8.5h10l1 10.5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L7 8.5Z"/><path d="M9 13h6"/></svg>
+            </span>
+            <span>Entradas</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="saidas.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 8.5V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8v3.7"/><path d="M7 8.5h10l1 10.5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L7 8.5Z"/><path d="M9 13h6"/></svg>
+            </span>
+            <span>Saídas</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="relatorios.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 4.5h7l5 5V18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Z"/><path d="M14 4.5v5h5"/><path d="M8 12h8M8 15h8"/></svg>
+            </span>
+            <span>Relatórios</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button class="logout" type="button" data-return-login>
+            <span class="logout-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 7V5.8A1.8 1.8 0 0 1 10.8 4h7.4A1.8 1.8 0 0 1 20 5.8v12.4A1.8 1.8 0 0 1 18.2 20h-7.4A1.8 1.8 0 0 1 9 18.2V17"/><path d="M15 12H4"/><path d="m8 8 4 4-4 4"/></svg>
+            </span>
+            <span>Sair</span>
+          </button>
+
+          <div class="profile-tag">Funcionário</div>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <div>
+            <h1>Entradas</h1>
+            <p>Confira o histórico de todas as entradas de produtos no estoque.</p>
+          </div>
+
+          <button class="primary-button" type="button" data-open-entry-modal>+ Nova Entrada</button>
+        </header>
+
+        <section class="stats-grid" aria-label="Resumo das entradas">
+          <article class="stat-card">
+            <div class="stat-top">
+              <span class="stat-icon">
+                <svg viewBox="0 0 24 24"><path d="M8 7.5V5.8A1.8 1.8 0 0 1 9.8 4h4.4A1.8 1.8 0 0 1 16 5.8v1.7"/><path d="M5 8.5h14l-1 10.5a2 2 0 0 1-2 1.8H8a2 2 0 0 1-2-1.8L5 8.5Z"/><path d="M9 12.5h6"/></svg>
+              </span>
+              <span class="stat-label">Total de entradas</span>
+            </div>
+            <div class="stat-value">—</div>
+            <span class="badge green">Aguardando dados</span>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span class="stat-icon">
+                <svg viewBox="0 0 24 24"><path d="M5 8.5V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5"/><path d="M9 11h6"/><path d="M9 15h6"/><path d="M8 4h8l2 4.5H6L8 4Z"/></svg>
+              </span>
+              <span class="stat-label">Produtos diferentes</span>
+            </div>
+            <div class="stat-value">—</div>
+            <span class="badge yellow">Aguardando dados</span>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span class="stat-icon">
+                <svg viewBox="0 0 24 24"><path d="M7 3.5v4"/><path d="M17 3.5v4"/><path d="M4.5 9h15"/><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 13h2M14 13h2M8 17h2M14 17h2"/></svg>
+              </span>
+              <span class="stat-label">Valor total</span>
+            </div>
+            <div class="stat-value">—</div>
+            <span class="badge yellow">Aguardando dados</span>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span class="stat-icon">
+                <svg viewBox="0 0 24 24"><path d="M7 3.5v4"/><path d="M17 3.5v4"/><path d="M4.5 9h15"/><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M12 12v3.5"/><path d="M9.5 15.5h5"/></svg>
+              </span>
+              <span class="stat-label">Última entrada</span>
+            </div>
+            <div class="stat-value">—</div>
+            <span class="badge green">Aguardando dados</span>
+          </article>
+        </section>
+
+        <section class="filters" aria-label="Filtros">
+          <div class="search-box">
+            <span class="filter-icon">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="5.5"/><path d="M16 16l4 4"/></svg>
+            </span>
+            <input type="text" value="" placeholder="Buscar por produto, fornecedor ou observação..." />
+          </div>
+
+          <label class="mini-field date-field" aria-label="Data inicial">
+            <span class="filter-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 3.5v4"/><path d="M17 3.5v4"/><path d="M4.5 9h15"/><rect x="4" y="5" width="16" height="15" rx="2"/></svg>
+            </span>
+            <input type="date" aria-label="Data inicial" />
+          </label>
+
+          <label class="mini-field date-field" aria-label="Data final">
+            <span class="filter-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 3.5v4"/><path d="M17 3.5v4"/><path d="M4.5 9h15"/><rect x="4" y="5" width="16" height="15" rx="2"/></svg>
+            </span>
+            <input type="date" aria-label="Data final" />
+          </label>
+
+          <div class="mini-field select-field" role="button" tabindex="0" aria-expanded="false">
+            <span class="selected-value">Todos os fornecedores</span>
+            <span class="filter-icon without-space">
+              <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+            </span>
+            <ul class="filter-menu" aria-label="Lista de fornecedores">
+              <li class="filter-option selected">Todos os fornecedores</li>
+              <li class="filter-option">Aguardando cadastro</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="table-wrap" aria-label="Lista de entradas">
+          <table>
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Produto</th>
+                <th>Quantidade</th>
+                <th>Fornecedor</th>
+                <th>Valor (R$)</th>
+                <th>Observação</th>
+                <th class="arrow-col"></th>
+              </tr>
+            </thead>
+            <tbody id="entradas-table-body"></tbody>
+          </table>
+        </section>
+
+        <div class="table-footer">
+          <span>Sem registros disponíveis</span>
+          <div class="pagination" aria-label="Paginação">
+            <button class="page-btn muted" type="button">&lt;</button>
+            <button class="page-btn active" type="button">1</button>
+            <button class="page-btn" type="button">2</button>
+            <button class="page-btn" type="button">3</button>
+            <button class="page-btn" type="button">&gt;</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="entry-modal" aria-hidden="true">
+      <form class="movement-modal" id="entry-form" role="dialog" aria-modal="true" aria-labelledby="entry-title">
+        <div class="modal-header">
+          <h2 id="entry-title">Registrar Entrada</h2>
+          <button class="close-button" type="button" aria-label="Fechar" data-close-entry>×</button>
+        </div>
+
+        <p class="modal-subtitle">Anote a entrada de produtos no estoque.</p>
+
+        <div class="field-group">
+          <label for="entry-product">Produto <span class="required">*</span></label>
+          <select id="entry-product" required>
+            <option value="">Selecione o produto</option>
+          </select>
+        </div>
+
+        <div class="two-columns">
+          <div class="field-group">
+            <label for="entry-quantity">Quantidade <span class="required">*</span></label>
+            <input id="entry-quantity" type="number" min="0.01" step="0.01" value="0" required />
+          </div>
+
+          <div class="field-group">
+            <label for="entry-date">Data de entrada</label>
+            <input id="entry-date" type="date" />
+          </div>
+        </div>
+
+        <div class="two-columns">
+          <div class="field-group">
+            <label for="entry-supplier">Fornecedor / Origem <span class="required">*</span></label>
+            <select id="entry-supplier" required>
+              <option value="">Selecione o fornecedor</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="entry-validity">Validade</label>
+            <input id="entry-validity" type="date" />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="entry-observation">Observação <span class="optional">(opcional)</span></label>
+          <input id="entry-observation" type="text" placeholder="Ex: Entrega semanal, Promoção" />
+        </div>
+
+        <div class="modal-actions">
+          <button class="secondary-modal-button" type="button" data-close-entry>Cancelar</button>
+          <button class="primary-modal-button" type="submit">
+            <span class="plus">+</span>
+            <span>Salvar registro</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <script src="js/entradas.js"></script>
+  </body>
+</html>
