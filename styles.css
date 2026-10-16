@@ -98,22 +98,27 @@ button {
   align-items: center;
   justify-content: flex-start;
   width: 100%;
+  gap: 18px;
 }
 
 .brand-basket {
-  width: min(560px, 100%);
+  width: min(420px, 100%);
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  margin-left: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  flex-shrink: 0;
 }
 
 .brand-basket img {
   display: block;
   width: 100%;
+  max-width: 360px;
   height: auto;
   object-fit: contain;
-  max-height: 500px;
 }
 
 .hidden-illustration {
@@ -121,9 +126,9 @@ button {
 }
 
 .store-illustration {
-  margin-top: 56px;
-  width: min(460px, 100%);
-  margin-left: -36px;
+  margin-top: 42px;
+  width: min(430px, 100%);
+  margin-left: 12px;
 }
 
 .store-illustration svg {
@@ -183,7 +188,8 @@ button {
   margin-top: 12px;
 }
 
-.field-shell input {
+.field-shell input,
+.select-shell select {
   width: 100%;
   height: 60px;
   border: 1px solid var(--field-border);
@@ -200,9 +206,32 @@ button {
   opacity: 1;
 }
 
-.field-shell:focus-within input {
+.field-shell:focus-within input,
+.select-shell:focus-within select {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.select-shell {
+  position: relative;
+}
+
+.select-shell select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+
+.select-chevron {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--icon);
+  font-size: 22px;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .field-icon {

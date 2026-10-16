@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://127.0.0.1:5000';
+const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 
 async function requestJson(url, options = {}) {
   const response = await fetch(`${API_BASE_URL}${url}`, {
@@ -9,7 +9,8 @@ async function requestJson(url, options = {}) {
     ...options
   });
 
-  const payload = await response.json().catch(() => ({}));
+  const responseText = await response.text();
+  const payload = responseText ? JSON.parse(responseText) : {};
 
   if (!response.ok) {
     return {

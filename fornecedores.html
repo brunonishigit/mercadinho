@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fornecedores | Mercadinho Seu João</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/fornecedores.css" />
+    <link rel="stylesheet" href="css/feedback.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-box">
+          <div class="brand-text">
+            <span class="brand-main">MERCADINHO</span>
+            <span class="brand-sub">do SEU JOÃO</span>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="Menu principal">
+          <button class="nav-item" type="button" data-link="painel.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>
+            </span>
+            <span>Painel</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="caixa.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 7.5h10l1.2 10.2a1.8 1.8 0 0 1-1.8 2.1H7.6a1.8 1.8 0 0 1-1.8-2.1L7 7.5Z"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5"/><path d="M9 12h6"/></svg>
+            </span>
+            <span>Caixa</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="produtos.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M5 8.5V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5"/><path d="M9 11h6"/><path d="M9 15h6"/><path d="M8 4h8l2 4.5H6L8 4Z"/></svg>
+            </span>
+            <span>Produtos</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="entradas.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 8.5V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8v3.7"/><path d="M7 8.5h10l1 10.5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L7 8.5Z"/><path d="M9 13h6"/></svg>
+            </span>
+            <span>Entradas</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="saidas.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 8.5V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8v3.7"/><path d="M7 8.5h10l1 10.5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L7 8.5Z"/><path d="M9 13h6"/></svg>
+            </span>
+            <span>Saídas</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="relatorios.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 4.5h7l5 5V18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Z"/><path d="M14 4.5v5h5"/><path d="M8 12h8M8 15h8"/></svg>
+            </span>
+            <span>Relatórios</span>
+          </button>
+
+          <button class="nav-item active" type="button" data-link="fornecedores.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M16 19v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1"/><circle cx="10" cy="7" r="3"/><path d="M20 19v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <span>Fornecedores</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button class="logout" type="button" data-return-login>
+            <span class="logout-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 7V5.8A1.8 1.8 0 0 1 10.8 4h7.4A1.8 1.8 0 0 1 20 5.8v12.4A1.8 1.8 0 0 1 18.2 20h-7.4A1.8 1.8 0 0 1 9 18.2V17"/><path d="M15 12H4"/><path d="m8 8 4 4-4 4"/></svg>
+            </span>
+            <span>Sair</span>
+          </button>
+
+          <div class="profile-tag" aria-live="polite">Carregando...</div>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <div>
+            <h1>Fornecedores</h1>
+            <p>Cadastre e mantenha os fornecedores do mercadinho.</p>
+          </div>
+
+          <button class="primary-button" type="button" data-open-supplier-modal>+ Novo Fornecedor</button>
+        </header>
+
+        <section class="stats-grid" aria-label="Resumo dos fornecedores">
+          <article class="stat-card">
+            <div class="stat-top">
+              <span class="stat-icon">
+                <svg viewBox="0 0 24 24"><path d="M16 19v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1"/><circle cx="10" cy="7" r="3"/><path d="M20 19v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </span>
+              <span class="stat-label">Total de fornecedores</span>
+            </div>
+            <div class="stat-value">—</div>
+            <span class="badge green">Aguardando dados</span>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span class="stat-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0-10-10 10 10 0 0 0 10 10Z"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+              </span>
+              <span class="stat-label">Inativos</span>
+            </div>
+            <div class="stat-value">—</div>
+            <span class="badge warning">Aguardando dados</span>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span class="stat-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M9 9a3 3 0 1 1 6 0c0 2-3 2-3 5"/><path d="M12 2v2"/><path d="M22 12h-2"/><path d="M4 12H2"/><path d="M19.07 4.93 17.66 6.34"/><path d="M6.34 17.66 4.93 19.07"/><path d="M19.07 19.07 17.66 17.66"/><path d="M6.34 6.34 4.93 4.93"/></svg>
+              </span>
+              <span class="stat-label">Ativos</span>
+            </div>
+            <div class="stat-value">—</div>
+            <span class="badge green">Aguardando dados</span>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span class="stat-icon">
+                <svg viewBox="0 0 24 24"><path d="M7 3.5v4"/><path d="M17 3.5v4"/><path d="M4.5 9h15"/><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M12 12v3.5"/><path d="M9.5 15.5h5"/></svg>
+              </span>
+              <span class="stat-label">Último cadastro</span>
+            </div>
+            <div class="stat-value">—</div>
+            <span class="badge green">Aguardando dados</span>
+          </article>
+        </section>
+
+        <section class="filters" aria-label="Filtros de fornecedores">
+          <div class="search-box">
+            <span class="filter-icon">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="5.5"/><path d="M16 16l4 4"/></svg>
+            </span>
+            <input id="supplier-search" type="text" placeholder="Buscar por nome, telefone ou e-mail..." />
+          </div>
+
+          <div class="mini-field select-field" role="button" tabindex="0" aria-expanded="false" data-filter-key="status-fornecedor">
+            <span class="filter-icon">
+              <svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg>
+            </span>
+            <span class="selected-value">Status</span>
+            <span class="chevron">⌄</span>
+            <ul class="filter-menu" aria-label="Lista de status">
+              <li class="filter-option selected" data-filter-value="todos">Status</li>
+              <li class="filter-option" data-filter-value="ativo">Ativo</li>
+              <li class="filter-option" data-filter-value="inativo">Inativo</li>
+            </ul>
+          </div>
+
+          <div class="mini-field select-field" role="button" tabindex="0" aria-expanded="false" data-filter-key="ordem-fornecedor">
+            <span class="filter-icon">
+              <svg viewBox="0 0 24 24"><path d="M8 6h8M6 12h12M9 18h6"/></svg>
+            </span>
+            <span class="selected-value">Ordenar por</span>
+            <span class="chevron">⌄</span>
+            <ul class="filter-menu" aria-label="Lista de ordenação">
+              <li class="filter-option selected" data-filter-value="nome">Nome</li>
+              <li class="filter-option" data-filter-value="nome">Nome</li>
+              <li class="filter-option" data-filter-value="ativo">Status</li>
+            </ul>
+          </div>
+
+          <div class="mini-field placeholder-field" aria-hidden="true"></div>
+        </section>
+
+        <section class="table-wrap" aria-label="Lista de fornecedores">
+          <table>
+            <thead>
+              <tr>
+                <th>Fornecedor</th>
+                <th>Telefone</th>
+                <th>E-mail</th>
+                <th>Status</th>
+                <th class="arrow-col"></th>
+              </tr>
+            </thead>
+            <tbody id="fornecedores-table-body"></tbody>
+          </table>
+        </section>
+
+        <div class="table-footer">
+          <span>Sem registros disponíveis</span>
+          <div class="pagination" aria-label="Paginação">
+            <button class="page-btn muted" type="button">&lt;</button>
+            <button class="page-btn active" type="button">1</button>
+            <button class="page-btn" type="button">2</button>
+            <button class="page-btn" type="button">3</button>
+            <button class="page-btn" type="button">&gt;</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="modal-frame-label">Pop-up de fornecedor</div>
+
+    <div class="modal-backdrop" id="supplier-modal" aria-hidden="true">
+      <form class="movement-modal" id="supplier-form" role="dialog" aria-modal="true" aria-labelledby="supplier-title">
+        <div class="modal-header">
+          <div class="modal-header-copy">
+            <h2 id="supplier-title">Adicionar Fornecedor</h2>
+            <p id="supplier-subtitle" class="modal-subtitle">Cadastre um novo fornecedor.</p>
+          </div>
+          <button class="close-button" type="button" aria-label="Fechar" data-close-supplier>×</button>
+        </div>
+
+        <div class="field-group">
+          <label for="supplier-name">Nome <span class="required">*</span></label>
+          <div class="field-shell">
+            <input id="supplier-name" type="text" placeholder="Digite o nome do fornecedor" required />
+          </div>
+        </div>
+
+        <div class="two-columns">
+          <div class="field-group">
+            <label for="supplier-phone">Telefone</label>
+            <div class="field-shell">
+              <input id="supplier-phone" type="tel" placeholder="(11) 99999-9999" />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="supplier-email">E-mail</label>
+            <div class="field-shell">
+              <input id="supplier-email" type="email" placeholder="fornecedor@email.com" />
+            </div>
+          </div>
+        </div>
+
+        <div class="field-group checkbox-field">
+          <label for="supplier-active">Fornecedor ativo</label>
+          <div class="field-shell checkbox-shell">
+            <input id="supplier-active" type="checkbox" checked />
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button id="supplier-delete-button" class="danger-button" type="button" hidden>Inativar fornecedor</button>
+          <button id="supplier-submit-button" class="primary-button modal-submit" type="submit"><span class="plus">+</span> Adicionar</button>
+        </div>
+      </form>
+    </div>
+
+    <script src="js/feedback.js"></script>
+    <script src="js/session.js"></script>
+    <script src="js/fornecedores.js"></script>
+  </body>
+</html>

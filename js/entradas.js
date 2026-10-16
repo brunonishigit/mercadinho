@@ -5,6 +5,48 @@ const closeEntryButtons = document.querySelectorAll('[data-close-entry]');
 const entryForm = document.getElementById('entry-form');
 const productSelect = document.getElementById('entry-product');
 const fornecedorSelect = document.getElementById('entry-supplier');
+const entryPageSize = 10;
+let currentEntryPage = 1;
+
+const renderEntryPagination = (totalItems) => {
+  const pagination = document.querySelector('.table-footer .pagination');
+  const footerText = document.querySelector('.table-footer > span');
+  if (!pagination) return;
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / entryPageSize));
+  currentEntryPage = Math.min(currentEntryPage, totalPages);
+
+  const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
+
+  pagination.innerHTML = `
+    <button class="page-btn muted" type="button" data-page-action="prev" ${currentEntryPage === 1 ? 'disabled' : ''}>&lt;</button>
+    ${pages.map((page) => `
+      <button class="page-btn ${page === currentEntryPage ? 'active' : ''}" type="button" data-page="${page}">${page}</button>
+    `).join('')}
+    <button class="page-btn" type="button" data-page-action="next" ${currentEntryPage === totalPages ? 'disabled' : ''}>&gt;</button>
+  `;
+
+  pagination.querySelectorAll('[data-page]').forEach((button) => {
+    button.addEventListener('click', () => {
+      currentEntryPage = Number(button.dataset.page);
+      renderEntries();
+    });
+  });
+
+  pagination.querySelectorAll('[data-page-action]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const action = button.dataset.pageAction;
+      currentEntryPage = action === 'prev'
+        ? Math.max(1, currentEntryPage - 1)
+        : Math.min(totalPages, currentEntryPage + 1);
+      renderEntries();
+    });
+  });
+
+  if (footerText) {
+    footerText.textContent = totalPages > 1 ? `Página ${currentEntryPage} de ${totalPages}` : (totalItems ? 'Mostrando todos os registros' : 'Sem registros disponíveis');
+  }
+};
 
 const updateEntryStats = async () => {
   const cards = document.querySelectorAll('.stat-card .stat-value');
@@ -78,6 +120,50 @@ async function loadEntryReferences() {
   }
 }
 
+let entrySupplierMap = new Map();
+
+const getEntryFilterState = () => {
+  const searchInput = document.getElementById('entry-search');
+  const dateFromInput = document.getElementById('entry-date-from');
+  const dateToInput = document.getElementById('entry-date-to');
+  const supplierField = document.querySelector('[data-filter-key="fornecedor"]');
+
+  return {
+    search: (searchInput?.value || '').trim().toLowerCase(),
+    dateFrom: dateFromInput?.value || '',
+    dateTo: dateToInput?.value || '',
+    supplier: supplierField?.dataset.value || 'todos'
+  };
+};
+
+const applyEntryFilters = (items) => {
+  const { search, dateFrom, dateTo, supplier } = getEntryFilterState();
+
+  return items.filter((item) => {
+    const productName = item.produto || '';
+    const supplierName = entrySupplierMap.get(Number(item.id_fornecedor)) || item.fornecedor || '';
+    const haystack = [productName, supplierName, item.observacao, item.tipo].join(' ').toLowerCase();
+    if (search && !haystack.includes(search)) {
+      return false;
+    }
+
+    const itemDate = item.data_movimentacao ? new Date(item.data_movimentacao) : null;
+    if (dateFrom && (!itemDate || itemDate < new Date(`${dateFrom}T00:00:00`))) {
+      return false;
+    }
+
+    if (dateTo && (!itemDate || itemDate > new Date(`${dateTo}T23:59:59`))) {
+      return false;
+    }
+
+    if (supplier !== 'todos' && String(item.id_fornecedor || '') !== String(supplier)) {
+      return false;
+    }
+
+    return true;
+  });
+};
+
 const setupFilterDropdowns = () => {
   document.querySelectorAll('.select-field').forEach((field) => {
     const selectedValue = field.querySelector('.selected-value');
@@ -92,11 +178,17 @@ const setupFilterDropdowns = () => {
       const option = event.target.closest('.filter-option');
       if (option) {
         const label = option.textContent.trim();
+        const value = option.dataset.filterValue || option.textContent.trim().toLowerCase();
         if (selectedValue) {
           selectedValue.textContent = label;
         }
         options.forEach((item) => item.classList.toggle('selected', item === option));
+        field.dataset.value = value;
         closeDropdown();
+        if (typeof renderEntries === 'function') {
+          currentEntryPage = 1;
+          renderEntries();
+        }
         return;
       }
 
@@ -118,6 +210,18 @@ const setupFilterDropdowns = () => {
       }
     });
   });
+
+  document.getElementById('entry-search')?.addEventListener('input', () => {
+    currentEntryPage = 1;
+    renderEntries();
+  });
+
+  ['entry-date-from', 'entry-date-to'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('change', () => {
+      currentEntryPage = 1;
+      renderEntries();
+    });
+  });
 };
 
 const renderEntries = async () => {
@@ -130,33 +234,71 @@ const renderEntries = async () => {
       const tipo = String(item.tipo || '').toUpperCase();
       return tipo === 'ENTRADA';
     });
+    const filteredItems = applyEntryFilters(items);
 
-    if (!items.length) {
+    if (!filteredItems.length) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" class="empty-state-cell">Nenhuma entrada registrada.</td>
+          <td colspan="7" class="empty-state-cell">Nenhuma entrada encontrada com os filtros selecionados.</td>
         </tr>
       `;
+      renderEntryPagination(0);
       return;
     }
 
-    tbody.innerHTML = items.slice(0, 10).map((item) => `
-      <tr>
-        <td>${item.data_movimentacao || '—'}</td>
-        <td>${item.produto || 'Produto'}</td>
-        <td>${item.quantidade || 0}</td>
-        <td>${item.fornecedor || '—'}</td>
-        <td>R$ ${Number(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-        <td>${item.observacao || '—'}</td>
-        <td class="arrow-col">→</td>
-      </tr>
-    `).join('');
+    currentEntryPage = Math.min(currentEntryPage, Math.max(1, Math.ceil(filteredItems.length / entryPageSize)));
+    const start = (currentEntryPage - 1) * entryPageSize;
+    const pageItems = filteredItems.slice(start, start + entryPageSize);
+
+    tbody.innerHTML = pageItems.map((item) => {
+      const fornecedor = entrySupplierMap.get(Number(item.id_fornecedor)) || item.fornecedor || '—';
+      return `
+        <tr>
+          <td>${item.data_movimentacao || '—'}</td>
+          <td>${item.produto || 'Produto'}</td>
+          <td>${item.quantidade || 0}</td>
+          <td>${fornecedor}</td>
+          <td>R$ ${Number(item.valor_total || item.valor_unitario || item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td>${item.observacao || '—'}</td>
+          <td class="action-cell">
+            <button class="delete-movement-button" type="button" data-delete-movement="${item.id_movimentacao || ''}" aria-label="Excluir entrada">Excluir</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('[data-delete-movement]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const movementId = Number(button.dataset.deleteMovement);
+        const confirmed = await showConfirm('Deseja excluir esta entrada?');
+        if (!movementId || !confirmed) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`http://127.0.0.1:5000/api/movimentacoes/${movementId}`, { method: 'DELETE' });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.message || 'Não foi possível excluir a entrada.');
+          }
+
+          window.alert(data.message || 'Entrada excluída com sucesso.');
+          await updateEntryStats();
+          await renderEntries();
+        } catch (error) {
+          window.alert(error.message || 'Erro ao excluir entrada.');
+        }
+      });
+    });
+
+    renderEntryPagination(filteredItems.length);
   } catch (error) {
     tbody.innerHTML = `
       <tr>
         <td colspan="7" class="empty-state-cell">Não foi possível carregar as entradas.</td>
       </tr>
     `;
+    renderEntryPagination(0);
   }
 };
 

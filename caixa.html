@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caixa | Mercadinho Seu João</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/caixa.css" />
+    <link rel="stylesheet" href="css/feedback.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-box">
+          <div class="brand-text">
+            <span class="brand-main">MERCADINHO</span>
+            <span class="brand-sub">do SEU JOÃO</span>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="Menu principal">
+          <button class="nav-item" type="button" data-link="painel.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>
+            </span>
+            <span>Painel</span>
+          </button>
+
+          <button class="nav-item active" type="button" data-link="caixa.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 7.5h10l1.2 10.2a1.8 1.8 0 0 1-1.8 2.1H7.6a1.8 1.8 0 0 1-1.8-2.1L7 7.5Z"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5"/><path d="M9 12h6"/></svg>
+            </span>
+            <span>Caixa</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="produtos.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M5 8.5V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5"/><path d="M9 11h6"/><path d="M9 15h6"/><path d="M8 4h8l2 4.5H6L8 4Z"/></svg>
+            </span>
+            <span>Produtos</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="entradas.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 8.5V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8v3.7"/><path d="M7 8.5h10l1 10.5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L7 8.5Z"/><path d="M9 13h6"/></svg>
+            </span>
+            <span>Entradas</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="saidas.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 8.5V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8v3.7"/><path d="M7 8.5h10l1 10.5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L7 8.5Z"/><path d="M9 13h6"/></svg>
+            </span>
+            <span>Saídas</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="relatorios.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M7 4.5h7l5 5V18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Z"/><path d="M14 4.5v5h5"/><path d="M8 12h8M8 15h8"/></svg>
+            </span>
+            <span>Relatórios</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="fornecedores.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><path d="M16 19v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1"/><circle cx="10" cy="7" r="3"/><path d="M20 19v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <span>Fornecedores</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button class="logout" type="button" data-return-login>
+            <span class="logout-icon">
+              <svg viewBox="0 0 24 24"><path d="M9 7V5.8A1.8 1.8 0 0 1 10.8 4h7.4A1.8 1.8 0 0 1 20 5.8v12.4A1.8 1.8 0 0 1 18.2 20h-7.4A1.8 1.8 0 0 1 9 18.2V17"/><path d="M15 12H4"/><path d="m8 8 4 4-4 4"/></svg>
+            </span>
+            <span>Sair</span>
+          </button>
+
+          <div class="profile-tag" id="cash-user-tag" aria-live="polite">Carregando...</div>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <div>
+            <h1>Caixa</h1>
+            <p>Venda rápida com leitura de código de barras e controle de estoque.</p>
+          </div>
+
+          <button class="primary-button" type="button" id="clear-cart-button">Limpar venda</button>
+        </header>
+
+        <section class="cash-layout" aria-label="Tela de caixa">
+          <div class="sale-panel">
+            <div class="scanner-card">
+              <label class="field-label" for="barcode-input">Código de barras</label>
+              <div class="input-row">
+                <input id="barcode-input" type="text" placeholder="Digite ou leia o código do produto" autocomplete="off" />
+                <button class="secondary-button" type="button" id="search-product-button">Buscar</button>
+              </div>
+
+              <div class="product-preview" id="product-preview">
+                <span class="preview-title">Produto selecionado</span>
+                <div class="preview-empty">Nenhum produto encontrado ainda.</div>
+              </div>
+
+              <div class="quantity-row">
+                <label class="field-label" for="quantity-input">Quantidade</label>
+                <div class="quantity-box">
+                  <input id="quantity-input" type="number" min="1" step="1" value="1" />
+                  <button class="primary-button compact" type="button" id="add-product-button">Adicionar</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="cart-card">
+              <div class="cart-header">
+                <h2>Itens da venda</h2>
+                <span id="cart-counter">0 itens</span>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Produto</th>
+                      <th>Qtd.</th>
+                      <th>Preço</th>
+                      <th>Total</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="cash-cart-body">
+                    <tr>
+                      <td colspan="5" class="empty-state-cell">Nenhum item adicionado à venda.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <aside class="summary-panel">
+            <div class="summary-card">
+              <h2>Resumo</h2>
+
+              <div class="summary-line">
+                <span>Itens</span>
+                <strong id="summary-items">0</strong>
+              </div>
+              <div class="summary-line">
+                <span>Subtotal</span>
+                <strong id="summary-subtotal">R$ 0,00</strong>
+              </div>
+              <div class="summary-line">
+                <span>Desconto</span>
+                <strong>R$ 0,00</strong>
+              </div>
+              <div class="summary-line total-line">
+                <span>Total</span>
+                <strong id="summary-total">R$ 0,00</strong>
+              </div>
+
+              <div class="payment-box">
+                <label class="field-label">Forma de pagamento</label>
+                <div class="payment-options">
+                  <button class="payment-option active" type="button" data-method="DINHEIRO">Dinheiro</button>
+                  <button class="payment-option" type="button" data-method="CARTAO">Cartão</button>
+                  <button class="payment-option" type="button" data-method="PIX">PIX</button>
+                </div>
+              </div>
+
+              <button class="finalize-button" type="button" id="finalize-sale-button">Finalizar venda</button>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <script src="js/feedback.js"></script>
+    <script src="js/session.js"></script>
+    <script src="js/caixa.js"></script>
+  </body>
+</html>

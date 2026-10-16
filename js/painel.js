@@ -5,22 +5,82 @@ const movementOptions = document.querySelectorAll('[data-movement-type]');
 const painelTableBody = document.getElementById('painel-table-body');
 const movementForm = document.getElementById('movement-form');
 const movementProductSelect = document.getElementById('movement-product');
+const painelPageSize = 5;
+let currentPainelPage = 1;
+let painelCache = null;
+let painelRequest = null;
+let painelSearchTimer = null;
+
+const waitForPanelData = async () => {
+  if (painelCache) {
+    return painelCache;
+  }
+
+  if (!painelRequest) {
+    painelRequest = Promise.all([
+      fetch('http://127.0.0.1:5000/api/produtos'),
+      fetch('http://127.0.0.1:5000/api/movimentacoes')
+    ]).then(async ([productsResponse, movementsResponse]) => {
+      const productsPayload = await productsResponse.json();
+      const movementsPayload = await movementsResponse.json();
+      const products = Array.isArray(productsPayload?.items) ? productsPayload.items : [];
+      const movements = Array.isArray(movementsPayload?.items) ? movementsPayload.items : [];
+      painelCache = { products, movements };
+      return painelCache;
+    }).finally(() => {
+      painelRequest = null;
+    });
+  }
+
+  return painelRequest;
+};
+
+const renderPainelPagination = (totalItems) => {
+  const pagination = document.querySelector('.table-footer .pagination');
+  const footerText = document.querySelector('.table-footer > span');
+  if (!pagination) return;
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / painelPageSize));
+  currentPainelPage = Math.min(currentPainelPage, totalPages);
+
+  const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
+
+  pagination.innerHTML = `
+    <button class="page-btn muted" type="button" data-page-action="prev" ${currentPainelPage === 1 ? 'disabled' : ''}>&lt;</button>
+    ${pages.map((page) => `
+      <button class="page-btn ${page === currentPainelPage ? 'active' : ''}" type="button" data-page="${page}">${page}</button>
+    `).join('')}
+    <button class="page-btn" type="button" data-page-action="next" ${currentPainelPage === totalPages ? 'disabled' : ''}>&gt;</button>
+  `;
+
+  pagination.querySelectorAll('[data-page]').forEach((button) => {
+    button.addEventListener('click', () => {
+      currentPainelPage = Number(button.dataset.page);
+      renderMovementRows();
+    });
+  });
+
+  pagination.querySelectorAll('[data-page-action]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const action = button.dataset.pageAction;
+      currentPainelPage = action === 'prev'
+        ? Math.max(1, currentPainelPage - 1)
+        : Math.min(totalPages, currentPainelPage + 1);
+      renderMovementRows();
+    });
+  });
+
+  if (footerText) {
+    footerText.textContent = totalPages > 1 ? `Página ${currentPainelPage} de ${totalPages}` : (totalItems ? 'Mostrando todos os registros' : 'Sem registros disponíveis');
+  }
+};
 
 const updatePanelStats = async () => {
   const cards = document.querySelectorAll('.stat-card .stat-value');
   if (!cards.length) return;
 
   try {
-    const [productsResponse, movementsResponse] = await Promise.all([
-      fetch('http://127.0.0.1:5000/api/produtos'),
-      fetch('http://127.0.0.1:5000/api/movimentacoes')
-    ]);
-
-    const productsPayload = await productsResponse.json();
-    const movementsPayload = await movementsResponse.json();
-    const products = Array.isArray(productsPayload?.items) ? productsPayload.items : [];
-    const movements = Array.isArray(movementsPayload?.items) ? movementsPayload.items : [];
-
+    const { products, movements } = await waitForPanelData();
     const entradas = movements.filter((item) => String(item.tipo || '').toUpperCase() === 'ENTRADA');
     const saidas = movements.filter((item) => String(item.tipo || '').toUpperCase() === 'SAIDA');
     const lastMovement = movements.slice().sort((a, b) => new Date(b.data_movimentacao || 0) - new Date(a.data_movimentacao || 0))[0];
@@ -69,25 +129,76 @@ async function loadMovementProducts() {
   }
 }
 
+const getPanelFilterState = () => {
+  const searchInput = document.getElementById('painel-search');
+  const dateFromInput = document.getElementById('painel-date-from');
+  const dateToInput = document.getElementById('painel-date-to');
+  const typeField = document.querySelector('[data-filter-key="tipo"]');
+
+  return {
+    search: (searchInput?.value || '').trim().toLowerCase(),
+    dateFrom: dateFromInput?.value || '',
+    dateTo: dateToInput?.value || '',
+    type: typeField?.dataset.value || 'todos'
+  };
+};
+
+const applyPanelFilters = (items) => {
+  const { search, dateFrom, dateTo, type } = getPanelFilterState();
+
+  return items.filter((item) => {
+    const tipo = String(item.tipo || '').toUpperCase();
+    const haystack = [item.produto, item.observacao, tipo].join(' ').toLowerCase();
+    if (search && !haystack.includes(search)) {
+      return false;
+    }
+
+    const itemDate = item.data_movimentacao ? new Date(item.data_movimentacao) : null;
+    if (dateFrom && (!itemDate || itemDate < new Date(`${dateFrom}T00:00:00`))) {
+      return false;
+    }
+
+    if (dateTo && (!itemDate || itemDate > new Date(`${dateTo}T23:59:59`))) {
+      return false;
+    }
+
+    if (type !== 'todos' && tipo !== type.toUpperCase()) {
+      return false;
+    }
+
+    return true;
+  });
+};
+
 const renderMovementRows = async () => {
   if (!painelTableBody) return;
 
-  try {
-    const response = await fetch('http://127.0.0.1:5000/api/movimentacoes');
-    const payload = await response.json();
-    const items = Array.isArray(payload?.items) ? payload.items : [];
+  painelTableBody.innerHTML = `
+    <tr>
+      <td colspan="6" class="empty-state-cell">Carregando movimentações...</td>
+    </tr>
+  `;
 
-    if (!items.length) {
+  try {
+    const { movements } = await waitForPanelData();
+    const filteredItems = applyPanelFilters(movements);
+
+    if (!filteredItems.length) {
       painelTableBody.innerHTML = `
         <tr>
-          <td colspan="6" class="empty-state-cell">Nenhuma movimentação registrada no momento.</td>
+          <td colspan="6" class="empty-state-cell">Nenhuma movimentação encontrada com os filtros selecionados.</td>
         </tr>
       `;
+      renderPainelPagination(0);
       return;
     }
 
-    painelTableBody.innerHTML = items.slice(0, 5).map((item) => {
-      const tipo = item.tipo || 'ENTRADA';
+    currentPainelPage = Math.min(currentPainelPage, Math.max(1, Math.ceil(filteredItems.length / painelPageSize)));
+    const start = (currentPainelPage - 1) * painelPageSize;
+    const pageItems = filteredItems.slice(start, start + painelPageSize);
+
+    painelTableBody.innerHTML = pageItems.map((item) => {
+      const tipo = String(item.tipo || 'ENTRADA').toUpperCase();
       const produto = item.produto || item.id_produto || 'Produto';
       const quantidade = item.quantidade || 0;
       const observacao = item.observacao || '—';
@@ -96,7 +207,7 @@ const renderMovementRows = async () => {
       return `
         <tr>
           <td>${dataMovimentacao}</td>
-          <td><span class="tag ${tipo.toUpperCase() === 'SAIDA' ? 'perda' : 'venta'}">${tipo}</span></td>
+          <td><span class="tag ${tipo === 'SAIDA' ? 'saida' : 'entrada'}">${tipo}</span></td>
           <td>${produto}</td>
           <td>${quantidade}</td>
           <td>${observacao}</td>
@@ -104,12 +215,15 @@ const renderMovementRows = async () => {
         </tr>
       `;
     }).join('');
+
+    renderPainelPagination(filteredItems.length);
   } catch (error) {
     painelTableBody.innerHTML = `
       <tr>
         <td colspan="6" class="empty-state-cell">Não foi possível carregar as movimentações.</td>
       </tr>
     `;
+    renderPainelPagination(0);
   }
 };
 
@@ -174,7 +288,67 @@ modal?.addEventListener('click', (event) => {
   }
 });
 
+const setupPanelFilters = () => {
+  const searchInput = document.getElementById('painel-search');
+  const dateFromInput = document.getElementById('painel-date-from');
+  const dateToInput = document.getElementById('painel-date-to');
+  const selectField = document.querySelector('[data-filter-key="tipo"]');
+  const menuOptions = document.querySelectorAll('.filter-option');
+
+  searchInput?.addEventListener('input', () => {
+    clearTimeout(painelSearchTimer);
+    painelSearchTimer = setTimeout(() => {
+      currentPainelPage = 1;
+      renderMovementRows();
+    }, 180);
+  });
+
+  dateFromInput?.addEventListener('change', () => {
+    currentPainelPage = 1;
+    renderMovementRows();
+  });
+
+  dateToInput?.addEventListener('change', () => {
+    currentPainelPage = 1;
+    renderMovementRows();
+  });
+
+  selectField?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const isOpen = selectField.classList.toggle('is-open');
+    selectField.setAttribute('aria-expanded', String(isOpen));
+  });
+
+  menuOptions.forEach((option) => {
+    option.addEventListener('click', () => {
+      const value = option.dataset.filterValue || 'todos';
+      const selectedValue = value === 'todos' ? 'Todos os tipos' : option.textContent.trim();
+      const selectedLabel = selectField?.querySelector('.selected-value');
+
+      if (selectedLabel) {
+        selectedLabel.textContent = selectedValue;
+      }
+
+      selectField?.setAttribute('data-value', value);
+      selectField?.setAttribute('aria-expanded', 'false');
+      selectField?.classList.remove('is-open');
+
+      menuOptions.forEach((item) => item.classList.toggle('selected', item === option));
+      currentPainelPage = 1;
+      renderMovementRows();
+    });
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!selectField?.contains(event.target)) {
+      selectField?.classList.remove('is-open');
+      selectField?.setAttribute('aria-expanded', 'false');
+    }
+  });
+};
+
 loadMovementProducts();
+setupPanelFilters();
 renderMovementRows();
 updatePanelStats();
 
