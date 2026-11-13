@@ -1,4 +1,5 @@
 const tbody = document.getElementById('fornecedores-table-body');
+const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const supplierModal = document.getElementById('supplier-modal');
 const openSupplierButton = document.querySelector('[data-open-supplier-modal]');
 const closeSupplierButtons = document.querySelectorAll('[data-close-supplier]');
@@ -53,7 +54,7 @@ const updateSupplierStats = async () => {
   if (!cards.length) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/fornecedores');
+    const response = await fetch(`${API_BASE_URL}/api/fornecedores`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
 
@@ -226,7 +227,7 @@ const renderSuppliers = async () => {
   if (!tbody) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/fornecedores');
+    const response = await fetch(`${API_BASE_URL}/api/fornecedores`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
     const filteredItems = applySupplierFilters(items);
@@ -300,7 +301,7 @@ supplierForm?.addEventListener('submit', async (event) => {
 
   try {
     const isEditing = editingSupplierId !== null;
-    const url = isEditing ? `http://127.0.0.1:5000/api/fornecedores/${editingSupplierId}` : 'http://127.0.0.1:5000/api/fornecedores';
+    const url = isEditing ? `${API_BASE_URL}/api/fornecedores/${editingSupplierId}` : `${API_BASE_URL}/api/fornecedores`;
     const method = isEditing ? 'PUT' : 'POST';
 
     const response = await fetch(url, {
@@ -332,7 +333,7 @@ const initializeSupplierModal = () => {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/fornecedores/${editingSupplierId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/fornecedores/${editingSupplierId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

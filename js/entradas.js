@@ -1,4 +1,5 @@
 const tbody = document.getElementById('entradas-table-body');
+const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const entryModal = document.getElementById('entry-modal');
 const openEntryButton = document.querySelector('[data-open-entry-modal]');
 const closeEntryButtons = document.querySelectorAll('[data-close-entry]');
@@ -53,7 +54,7 @@ const updateEntryStats = async () => {
   if (!cards.length) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/movimentacoes');
+    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`);
     const payload = await response.json();
     const items = (Array.isArray(payload?.items) ? payload.items : []).filter((item) => String(item.tipo || '').toUpperCase() === 'ENTRADA');
 
@@ -94,8 +95,8 @@ const closeEntryModal = () => {
 async function loadEntryReferences() {
   try {
     const [productsResponse, suppliersResponse] = await Promise.all([
-      fetch('http://127.0.0.1:5000/api/produtos'),
-      fetch('http://127.0.0.1:5000/api/fornecedores')
+      fetch(`${API_BASE_URL}/api/produtos`),
+      fetch(`${API_BASE_URL}/api/fornecedores`)
     ]);
 
     const productsData = await productsResponse.json();
@@ -228,7 +229,7 @@ const renderEntries = async () => {
   if (!tbody) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/movimentacoes');
+    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`);
     const payload = await response.json();
     const items = (Array.isArray(payload?.items) ? payload.items : []).filter((item) => {
       const tipo = String(item.tipo || '').toUpperCase();
@@ -276,7 +277,7 @@ const renderEntries = async () => {
         }
 
         try {
-          const response = await fetch(`http://127.0.0.1:5000/api/movimentacoes/${movementId}`, { method: 'DELETE' });
+          const response = await fetch(`${API_BASE_URL}/api/movimentacoes/${movementId}`, { method: 'DELETE' });
           const data = await response.json();
           if (!response.ok) {
             throw new Error(data.message || 'Não foi possível excluir a entrada.');
@@ -322,7 +323,7 @@ entryForm?.addEventListener('submit', async (event) => {
   }
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/movimentacoes', {
+    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

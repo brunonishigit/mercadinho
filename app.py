@@ -1,6 +1,7 @@
 import os
 from decimal import Decimal, InvalidOperation
 from datetime import datetime
+from urllib.parse import urlsplit, urlunsplit
 
 from flask import Flask, jsonify, request, send_from_directory
 from dotenv import load_dotenv
@@ -78,6 +79,17 @@ def add_cors_headers(response):
 
 supabase_url = os.getenv('SUPABASE_URL')
 supabase_key = os.getenv('SUPABASE_KEY')
+
+if supabase_url:
+    parsed_supabase_url = urlsplit(supabase_url.strip())
+    if parsed_supabase_url.path.rstrip('/') == '/rest/v1':
+        supabase_url = urlunsplit((
+            parsed_supabase_url.scheme,
+            parsed_supabase_url.netloc,
+            '',
+            '',
+            ''
+        ))
 
 if supabase_url and supabase_key:
     try:
@@ -652,17 +664,22 @@ def update_product(product_id):
 @app.get('/api/movimentacoes')
 def list_movements():
     items = safe_query('movimentacao', '*')
+    product_map = get_product_map()
+    category_map = get_category_map()
     enriched = []
 
     for item in items:
         item_copy = dict(item)
-        product = get_product_by_id(item_copy.get('id_produto'))
+        product_id = item_copy.get('id_produto')
+        product = product_map.get(int(product_id)) if product_id not in (None, '') else None
         item_copy['produto'] = product.get('nome', 'Produto') if product else 'Produto'
-        item_copy['categoria'] = get_category_name(product.get('id_categoria')) if product else 'Sem categoria'
+        category_id = product.get('id_categoria') if product else None
+        category = category_map.get(int(category_id)) if category_id not in (None, '') else None
+        item_copy['categoria'] = category.get('nome', 'Sem categoria') if category else 'Sem categoria'
 
         try:
             quantidade = parse_decimal(item_copy.get('quantidade', 0))
-            valor_unitario = get_product_price(item_copy.get('id_produto'))
+            valor_unitario = parse_decimal(product.get('preco', 0)) if product else Decimal('0')
             total = decimal_money(quantidade * valor_unitario)
             item_copy['valor_unitario'] = str(decimal_money(valor_unitario))
             item_copy['valor_total'] = str(total)

@@ -1,4 +1,5 @@
 const barcodeInput = document.getElementById('barcode-input');
+const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const quantityInput = document.getElementById('quantity-input');
 const searchProductButton = document.getElementById('search-product-button');
 const addProductButton = document.getElementById('add-product-button');
@@ -119,7 +120,7 @@ const renderCart = () => {
 
       const usuario = localStorage.getItem('mercadinho_usuario') || 'operador';
       try {
-        const authResponse = await fetch('http://127.0.0.1:5000/api/auth/login', {
+        const authResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ usuario, senha })
@@ -174,7 +175,7 @@ const loadProductCatalog = async () => {
   productCatalogLoading = true;
 
   try {
-    const response = await fetchJsonWithTimeout('http://127.0.0.1:5000/api/produtos', { method: 'GET' }, 15000);
+    const response = await fetchJsonWithTimeout(`${API_BASE_URL}/api/produtos`, { method: 'GET' }, 15000);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
     productCatalog = items;
@@ -202,7 +203,7 @@ const fetchProductByBarcode = async () => {
 
     try {
       const response = await fetchJsonWithTimeout(
-        `http://127.0.0.1:5000/api/produtos?search=${encodeURIComponent(queryValue)}`,
+        `${API_BASE_URL}/api/produtos?search=${encodeURIComponent(queryValue)}`,
         { method: 'GET' },
         20000
       );
@@ -321,7 +322,7 @@ const clearCart = async () => {
 
   const usuario = localStorage.getItem('mercadinho_usuario') || 'operador';
   try {
-    const authResponse = await fetch('http://127.0.0.1:5000/api/auth/login', {
+    const authResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ usuario, senha })
@@ -359,7 +360,7 @@ const finalizeSale = async () => {
 
     const results = [];
     for (const move of sales) {
-      const response = await fetch('http://127.0.0.1:5000/api/movimentacoes', {
+      const response = await fetch(`${API_BASE_URL}/api/movimentacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(move)

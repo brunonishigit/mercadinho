@@ -1,4 +1,5 @@
 const tbody = document.getElementById('produtos-table-body');
+const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const productModal = document.getElementById('product-modal');
 const openProductButton = document.querySelector('[data-open-product-modal]');
 const closeProductButtons = document.querySelectorAll('[data-close-product]');
@@ -54,7 +55,7 @@ const updateProductsStats = async () => {
   if (!cards.length) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/produtos');
+    const response = await fetch(`${API_BASE_URL}/api/produtos`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
 
@@ -135,7 +136,7 @@ const closeProductModal = () => {
 
 async function fetchCategories() {
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/categorias');
+    const response = await fetch(`${API_BASE_URL}/api/categorias`);
     const payload = await response.json();
     return Array.isArray(payload?.items) ? payload.items : [];
   } catch (error) {
@@ -299,7 +300,7 @@ const renderProducts = async () => {
   if (!tbody) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/produtos');
+    const response = await fetch(`${API_BASE_URL}/api/produtos`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
     const filteredItems = applyProductFilters(items);
@@ -382,7 +383,7 @@ productForm?.addEventListener('submit', async (event) => {
 
   try {
     const isEditing = editingProductId !== null;
-    const url = isEditing ? `http://127.0.0.1:5000/api/produtos/${editingProductId}` : 'http://127.0.0.1:5000/api/produtos';
+    const url = isEditing ? `${API_BASE_URL}/api/produtos/${editingProductId}` : `${API_BASE_URL}/api/produtos`;
     const method = isEditing ? 'PUT' : 'POST';
 
     const response = await fetch(url, {
@@ -412,7 +413,7 @@ const initializeProductModal = () => {
     if (editingProductId === null) return;
     const confirmed = await showConfirm('Deseja inativar este produto? A ação mantém o histórico e remove o produto da visualização ativa.');
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/produtos/${editingProductId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/produtos/${editingProductId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

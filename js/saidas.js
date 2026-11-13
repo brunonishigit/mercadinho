@@ -1,4 +1,5 @@
 const tbody = document.getElementById('saidas-table-body');
+const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const exitModal = document.getElementById('exit-modal');
 const openExitButton = document.querySelector('[data-open-exit-modal]');
 const closeExitButtons = document.querySelectorAll('[data-close-exit]');
@@ -52,7 +53,7 @@ const updateExitStats = async () => {
   if (!cards.length) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/movimentacoes');
+    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`);
     const payload = await response.json();
     const items = (Array.isArray(payload?.items) ? payload.items : []).filter((item) => String(item.tipo || '').toUpperCase() === 'SAIDA');
 
@@ -94,7 +95,7 @@ async function loadExitReferenceProducts() {
   if (!exitProductSelect) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/produtos');
+    const response = await fetch(`${API_BASE_URL}/api/produtos`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
 
@@ -211,7 +212,7 @@ const renderExits = async () => {
   if (!tbody) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/movimentacoes');
+    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`);
     const payload = await response.json();
     const items = (Array.isArray(payload?.items) ? payload.items : []).filter((item) => {
       const tipo = String(item.tipo || '').toUpperCase();
@@ -256,7 +257,7 @@ const renderExits = async () => {
         }
 
         try {
-          const response = await fetch(`http://127.0.0.1:5000/api/movimentacoes/${movementId}`, { method: 'DELETE' });
+          const response = await fetch(`${API_BASE_URL}/api/movimentacoes/${movementId}`, { method: 'DELETE' });
           const data = await response.json();
           if (!response.ok) {
             throw new Error(data.message || 'Não foi possível excluir a saída.');
@@ -300,7 +301,7 @@ exitForm?.addEventListener('submit', async (event) => {
   }
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/movimentacoes', {
+    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

@@ -1,4 +1,5 @@
 const modal = document.getElementById('movement-modal');
+const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const openButton = document.querySelector('[data-open-movement]');
 const closeButtons = document.querySelectorAll('[data-close-movement]');
 const movementOptions = document.querySelectorAll('[data-movement-type]');
@@ -18,8 +19,8 @@ const waitForPanelData = async () => {
 
   if (!painelRequest) {
     painelRequest = Promise.all([
-      fetch('http://127.0.0.1:5000/api/produtos'),
-      fetch('http://127.0.0.1:5000/api/movimentacoes')
+      fetch(`${API_BASE_URL}/api/produtos`),
+      fetch(`${API_BASE_URL}/api/movimentacoes`)
     ]).then(async ([productsResponse, movementsResponse]) => {
       const productsPayload = await productsResponse.json();
       const movementsPayload = await movementsResponse.json();
@@ -117,7 +118,7 @@ async function loadMovementProducts() {
   if (!movementProductSelect) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/produtos');
+    const response = await fetch(`${API_BASE_URL}/api/produtos`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
 
@@ -257,7 +258,7 @@ movementForm?.addEventListener('submit', async (event) => {
   }
 
   try {
-    const response = await fetch('http://127.0.0.1:5000/api/movimentacoes', {
+    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

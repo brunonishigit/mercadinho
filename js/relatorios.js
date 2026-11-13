@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
   const navButtons = document.querySelectorAll('[data-link]');
   const logoutButton = document.querySelector('[data-return-login]');
 
@@ -130,10 +131,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const renderReports = async () => {
     try {
       const [productsResponse, movementsResponse, alertsResponse, lotsResponse] = await Promise.all([
-        fetch('http://127.0.0.1:5000/api/produtos'),
-        fetch('http://127.0.0.1:5000/api/movimentacoes'),
-        fetch('http://127.0.0.1:5000/api/alertas'),
-        fetch('http://127.0.0.1:5000/api/lotes')
+        fetch(`${API_BASE_URL}/api/produtos`),
+        fetch(`${API_BASE_URL}/api/movimentacoes`),
+        fetch(`${API_BASE_URL}/api/alertas`),
+        fetch(`${API_BASE_URL}/api/lotes`)
       ]);
 
       const productsPayload = await productsResponse.json();
