@@ -1,16 +1,21 @@
 import os
+from functools import wraps
 from decimal import Decimal, InvalidOperation
 from datetime import datetime
 from urllib.parse import urlsplit, urlunsplit
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, g, jsonify, request, send_from_directory
 from dotenv import load_dotenv
 from supabase import create_client
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv()
 
 app = Flask(__name__, static_folder='.', static_url_path='')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+TOKEN_MAX_AGE_SECONDS = 8 * 60 * 60
+TOKEN_SALT = 'mercadinho-auth'
 
 
 @app.route('/')
@@ -76,6 +81,13 @@ def add_cors_headers(response):
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     return response
+
+
+@app.before_request
+def handle_api_options():
+    if request.method == 'OPTIONS' and request.path.startswith('/api/'):
+        return '', 204
+    return None
 
 
 supabase_url = os.getenv('SUPABASE_URL')
@@ -179,6 +191,135 @@ def get_user_by_login(login_name):
         if str(item.get('login', '')).strip().lower() == login_name and bool(item.get('ativo', False)):
             return item
     return None
+
+
+def _token_serializer():
+    secret_key = app.config.get('SECRET_KEY')
+    if not secret_key:
+        return None
+    return URLSafeTimedSerializer(secret_key, salt=TOKEN_SALT)
+
+
+def usuario_do_token(request):
+    authorization = str(request.headers.get('Authorization') or '')
+    scheme, separator, token = authorization.partition(' ')
+    if scheme.lower() != 'bearer' or not separator or not token.strip():
+        return None
+
+    serializer = _token_serializer()
+    if serializer is None:
+        return None
+
+    try:
+        identity = serializer.loads(token.strip(), max_age=TOKEN_MAX_AGE_SECONDS)
+    except BadSignature:
+        return None
+
+    if not isinstance(identity, dict) or identity.get('id_usuario') is None:
+        return None
+
+    users = safe_query('usuario', '*', id_usuario=identity['id_usuario'])
+    if not users or not bool(users[0].get('ativo', False)):
+        return None
+    return users[0]
+
+
+def _unauthorized_response():
+    return jsonify({'ok': False, 'erro': 'Autenticação necessária'}), 401
+
+
+def _forbidden_response():
+    return jsonify({'ok': False, 'erro': 'Sem permissão'}), 403
+
+
+def _user_permissions(usuario):
+    permissions = usuario.get('permissoes') or []
+    if isinstance(permissions, str):
+        return {permissions}
+    return set(permissions)
+
+
+def _is_owner(usuario):
+    return str(usuario.get('tipo') or '').strip().upper() == 'DONO'
+
+
+def _has_permission(usuario, tela):
+    return _is_owner(usuario) or tela in _user_permissions(usuario)
+
+
+def login_required(view_func):
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        usuario = usuario_do_token(request)
+        if not usuario:
+            return _unauthorized_response()
+        g.usuario_autenticado = usuario
+        return view_func(*args, **kwargs)
+    return wrapped
+
+
+def permissao(tela):
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped(*args, **kwargs):
+            usuario = getattr(g, 'usuario_autenticado', None)
+            if usuario is None:
+                return _unauthorized_response()
+            if not _has_permission(usuario, tela):
+                return _forbidden_response()
+            return view_func(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+def permissao_qualquer(*telas):
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped(*args, **kwargs):
+            usuario = getattr(g, 'usuario_autenticado', None)
+            if usuario is None:
+                return _unauthorized_response()
+            if not _is_owner(usuario) and not _user_permissions(usuario).intersection(telas):
+                return _forbidden_response()
+            return view_func(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+def somente_dono(view_func):
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        usuario = getattr(g, 'usuario_autenticado', None)
+        if usuario is None:
+            return _unauthorized_response()
+        if not _is_owner(usuario):
+            return _forbidden_response()
+        return view_func(*args, **kwargs)
+    return wrapped
+
+
+def permissao_movimentacao(view_func):
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        usuario = getattr(g, 'usuario_autenticado', None)
+        if usuario is None:
+            return _unauthorized_response()
+
+        payload = request.get_json(silent=True) or {}
+        tipo = str(payload.get('tipo', 'ENTRADA')).upper().strip()
+        if tipo not in {'ENTRADA', 'SAIDA', 'AJUSTE'}:
+            return jsonify({'ok': False, 'message': 'Tipo de movimentação inválido.'}), 400
+
+        if _is_owner(usuario):
+            return view_func(*args, **kwargs)
+        if tipo == 'AJUSTE':
+            return _forbidden_response()
+
+        required_permissions = {'entradas'} if tipo == 'ENTRADA' else {'saidas', 'caixa'}
+        if not _user_permissions(usuario).intersection(required_permissions):
+            return _forbidden_response()
+        return view_func(*args, **kwargs)
+    return wrapped
 
 
 def get_product_map():
@@ -386,6 +527,8 @@ def health():
 
 
 @app.post('/api/auth/register')
+@login_required
+@somente_dono
 def register_user():
     payload = request.get_json(silent=True) or {}
     nome = str(payload.get('nome', '')).strip()
@@ -436,6 +579,10 @@ def login():
     if not supabase:
         return jsonify({'ok': False, 'message': 'Banco não configurado.'}), 503
 
+    serializer = _token_serializer()
+    if serializer is None:
+        return jsonify({'ok': False, 'message': 'Autenticação não configurada no servidor.'}), 503
+
     usuario_validado = get_user_by_login(usuario)
 
     if not usuario_validado:
@@ -461,21 +608,32 @@ def login():
     if not senha_valida:
         return jsonify({'ok': False, 'message': 'Credenciais inválidas.'}), 401
 
+    token = serializer.dumps({'id_usuario': usuario_validado.get('id_usuario')})
+    permissoes = usuario_validado.get('permissoes') or []
+    if isinstance(permissoes, str):
+        permissoes = [permissoes]
+
     return jsonify({
         'ok': True,
+        'token': token,
         'usuario': usuario_validado.get('login', usuario),
         'perfil': usuario_validado.get('tipo', 'FUNCIONARIO'),
+        'permissoes': permissoes,
         'message': 'Login realizado com sucesso.'
     })
 
 
 @app.get('/api/categorias')
+@login_required
+@permissao_qualquer('produtos', 'entradas', 'saidas', 'caixa')
 def list_categories():
     items = safe_query('categoria', '*')
     return jsonify({'items': items}), 200
 
 
 @app.get('/api/fornecedores')
+@login_required
+@permissao_qualquer('fornecedores', 'entradas')
 def list_suppliers():
     items = safe_query('fornecedor', '*')
     ordered = sorted(items, key=lambda x: str(x.get('nome') or '').lower())
@@ -483,6 +641,8 @@ def list_suppliers():
 
 
 @app.post('/api/fornecedores')
+@login_required
+@permissao('fornecedores')
 def create_supplier():
     payload = request.get_json(silent=True) or {}
     nome = str(payload.get('nome', '')).strip()
@@ -518,6 +678,8 @@ def create_supplier():
 
 
 @app.put('/api/fornecedores/<int:supplier_id>')
+@login_required
+@permissao('fornecedores')
 def update_supplier(supplier_id):
     existing = safe_query('fornecedor', '*', id_fornecedor=supplier_id)
     if not existing:
@@ -559,6 +721,8 @@ def update_supplier(supplier_id):
 
 
 @app.get('/api/produtos')
+@login_required
+@permissao_qualquer('produtos', 'entradas', 'saidas', 'caixa', 'painel', 'relatorios')
 def list_products():
     items = safe_query('produto', '*')
     search = str(request.args.get('search') or '').strip().lower()
@@ -603,6 +767,8 @@ def list_products():
 
 
 @app.post('/api/produtos')
+@login_required
+@permissao('produtos')
 def create_product():
     payload = request.get_json(silent=True) or {}
 
@@ -644,6 +810,8 @@ def create_product():
 
 
 @app.put('/api/produtos/<int:product_id>')
+@login_required
+@permissao('produtos')
 def update_product(product_id):
     product = get_product_by_id(product_id)
     if not product:
@@ -695,8 +863,20 @@ def update_product(product_id):
 
 
 @app.get('/api/movimentacoes')
+@login_required
+@permissao_qualquer('entradas', 'saidas', 'relatorios', 'painel')
 def list_movements():
     items = safe_query('movimentacao', '*')
+    usuario = g.usuario_autenticado
+    permissions = _user_permissions(usuario)
+    if not _is_owner(usuario) and not permissions.intersection({'relatorios', 'painel'}):
+        allowed_types = set()
+        if 'entradas' in permissions:
+            allowed_types.add('ENTRADA')
+        if 'saidas' in permissions:
+            allowed_types.add('SAIDA')
+        items = [item for item in items if str(item.get('tipo') or '').upper() in allowed_types]
+
     product_map = get_product_map()
     category_map = get_category_map()
     enriched = []
@@ -726,6 +906,8 @@ def list_movements():
 
 
 @app.delete('/api/movimentacoes/<int:movement_id>')
+@login_required
+@somente_dono
 def delete_movement(movement_id):
     if not supabase:
         return jsonify({'ok': False, 'message': 'Banco não configurado.'}), 503
@@ -745,11 +927,12 @@ def delete_movement(movement_id):
 
 
 @app.post('/api/movimentacoes')
+@login_required
+@permissao_movimentacao
 def create_movement():
     payload = request.get_json(silent=True) or {}
     tipo = str(payload.get('tipo', 'ENTRADA')).upper().strip()
     product_id = payload.get('id_produto')
-    usuario_login = str(payload.get('usuario') or payload.get('login') or 'operador').strip()
 
     if product_id in (None, ''):
         return jsonify({'ok': False, 'message': 'Produto obrigatório.'}), 400
@@ -758,9 +941,7 @@ def create_movement():
     if not product:
         return jsonify({'ok': False, 'message': 'Produto não encontrado.'}), 404
 
-    usuario = get_user_by_login(usuario_login)
-    if not usuario:
-        return jsonify({'ok': False, 'message': 'Usuário não encontrado.'}), 401
+    usuario = g.usuario_autenticado
 
     try:
         quantidade = parse_decimal(payload.get('quantidade', 0))
@@ -834,6 +1015,8 @@ def create_movement():
 
 
 @app.get('/api/lotes')
+@login_required
+@permissao_qualquer('painel', 'entradas', 'saidas', 'caixa', 'relatorios')
 def list_lots():
     items = safe_query('lote', '*')
     product_map = get_product_map()
@@ -850,12 +1033,16 @@ def list_lots():
 
 
 @app.get('/api/alertas')
+@login_required
+@permissao_qualquer('painel', 'relatorios')
 def list_alerts():
     generated = build_product_alerts()
     return jsonify({'items': generated}), 200
 
 
 @app.get('/api/relatorios')
+@login_required
+@permissao('relatorios')
 def list_reports():
     alerts = build_product_alerts()
     products = safe_query('produto', '*')
@@ -888,11 +1075,6 @@ def list_reports():
         },
         'items': alerts
     })
-
-
-@app.route('/api/<path:route>', methods=['OPTIONS'])
-def handle_options(route):
-    return '', 204
 
 
 if __name__ == '__main__':
