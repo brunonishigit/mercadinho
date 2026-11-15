@@ -1,8 +1,10 @@
 import time
 import unittest
 import uuid
+from unittest.mock import patch
 
 from app import app
+from werkzeug.security import check_password_hash, generate_password_hash
 
 
 class MercadinhoAppTests(unittest.TestCase):
@@ -37,6 +39,104 @@ class MercadinhoAppTests(unittest.TestCase):
         response = self.client.post('/api/auth/login', json={'usuario': 'operador', 'senha': 'hash_teste'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()['ok'], True)
+
+    def test_login_migrates_legacy_password_to_hash(self):
+        user = {
+            'id_usuario': 42,
+            'login': 'operador_legado',
+            'tipo': 'FUNCIONARIO',
+            'ativo': True,
+            'senha': 'senha_antiga'
+        }
+
+        with patch('app.supabase', object()), \
+                patch('app.get_user_by_login', return_value=user), \
+                patch('app.save_user_password_hash', return_value=True) as save_password:
+            response = self.client.post('/api/auth/login', json={
+                'usuario': 'operador_legado',
+                'senha': 'senha_antiga'
+            })
+
+        self.assertEqual(response.status_code, 200)
+        saved_hash = save_password.call_args[0][1]
+        self.assertNotEqual(saved_hash, 'senha_antiga')
+        self.assertTrue(check_password_hash(saved_hash, 'senha_antiga'))
+
+    def test_login_accepts_hashed_password(self):
+        user = {
+            'id_usuario': 42,
+            'login': 'operador_hash',
+            'tipo': 'FUNCIONARIO',
+            'ativo': True,
+            'senha': generate_password_hash('senha_segura')
+        }
+
+        with patch('app.supabase', object()), \
+                patch('app.get_user_by_login', return_value=user):
+            response = self.client.post('/api/auth/login', json={
+                'usuario': 'operador_hash',
+                'senha': 'senha_segura'
+            })
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_login_rejects_malformed_password_hash(self):
+        user = {
+            'id_usuario': 42,
+            'login': 'operador_hash_invalido',
+            'tipo': 'FUNCIONARIO',
+            'ativo': True,
+            'senha': 'scrypt:invalido'
+        }
+
+        with patch('app.supabase', object()), \
+                patch('app.get_user_by_login', return_value=user):
+            response = self.client.post('/api/auth/login', json={
+                'usuario': 'operador_hash_invalido',
+                'senha': 'senha'
+            })
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_login_does_not_succeed_when_legacy_password_migration_fails(self):
+        user = {
+            'id_usuario': 42,
+            'login': 'operador_legado',
+            'tipo': 'FUNCIONARIO',
+            'ativo': True,
+            'senha': 'senha_antiga'
+        }
+
+        with patch('app.supabase', object()), \
+                patch('app.get_user_by_login', return_value=user), \
+                patch('app.save_user_password_hash', return_value=False):
+            response = self.client.post('/api/auth/login', json={
+                'usuario': 'operador_legado',
+                'senha': 'senha_antiga'
+            })
+
+        self.assertEqual(response.status_code, 500)
+
+    def test_register_stores_password_as_hash(self):
+        payload = {
+            'nome': 'Usuário Cadastro Teste',
+            'tipo': 'FUNCIONARIO',
+            'login': 'cadastro_hash_teste',
+            'senha': 'senha_teste_123'
+        }
+
+        with patch('app.supabase', object()), \
+                patch('app.get_user_by_login', return_value=None), \
+                patch('app.safe_insert', return_value={
+                    'login': payload['login'],
+                    'tipo': payload['tipo']
+                }) as insert_user:
+            response = self.client.post('/api/auth/register', json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        saved_password = insert_user.call_args[0][1]['senha']
+        self.assertNotEqual(saved_password, payload['senha'])
+        self.assertTrue(check_password_hash(saved_password, payload['senha']))
 
     def test_create_product_with_valid_data(self):
         payload = {

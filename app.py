@@ -6,6 +6,7 @@ from urllib.parse import urlsplit, urlunsplit
 from flask import Flask, jsonify, request, send_from_directory
 from dotenv import load_dotenv
 from supabase import create_client
+from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv()
 
@@ -126,6 +127,22 @@ def safe_insert(table_name, payload):
         return None
     except Exception:
         return None
+
+
+def save_user_password_hash(user_id, password_hash):
+    if not supabase or user_id is None:
+        return False
+
+    try:
+        response = (
+            supabase.table('usuario')
+            .update({'senha': password_hash})
+            .eq('id_usuario', user_id)
+            .execute()
+        )
+        return bool(response.data)
+    except Exception:
+        return False
 
 
 def safe_update(table_name, row_id, payload):
@@ -391,7 +408,7 @@ def register_user():
     created = safe_insert('usuario', {
         'nome': nome,
         'login': login_name,
-        'senha': senha,
+        'senha': generate_password_hash(senha),
         'tipo': tipo,
         'ativo': True
     })
@@ -425,7 +442,23 @@ def login():
         return jsonify({'ok': False, 'message': 'Credenciais inválidas.'}), 401
 
     senha_banco = str(usuario_validado.get('senha', '')).strip()
-    if senha_banco != senha:
+    hash_prefixes = ('scrypt:', 'pbkdf2:')
+    if senha_banco.startswith(hash_prefixes):
+        try:
+            senha_valida = check_password_hash(senha_banco, senha)
+        except (TypeError, ValueError):
+            senha_valida = False
+    else:
+        senha_valida = senha_banco == senha
+        if senha_valida:
+            senha_hash = generate_password_hash(senha)
+            if not save_user_password_hash(usuario_validado.get('id_usuario'), senha_hash):
+                return jsonify({
+                    'ok': False,
+                    'message': 'Não foi possível atualizar a senha. Tente novamente.'
+                }), 500
+
+    if not senha_valida:
         return jsonify({'ok': False, 'message': 'Credenciais inválidas.'}), 401
 
     return jsonify({
