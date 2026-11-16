@@ -2,7 +2,6 @@ const passwordInput = document.getElementById('login-password');
 const toggleButtons = document.querySelectorAll('[data-password-toggle]');
 const loginForm = document.querySelector('.login-form');
 const forgotPasswordLink = document.querySelector('.forgot-password');
-const registerForm = document.getElementById('register-form');
 const API_BASE = window.location.origin || 'http://127.0.0.1:8000';
 
 const parseJsonResponse = async (response) => {
@@ -43,22 +42,6 @@ const loginToSystem = async (usuario, senha) => {
   }
 };
 
-const registerUser = async (payload) => {
-  const response = await fetch(`${API_BASE}/api/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await parseJsonResponse(response);
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Não foi possível cadastrar o usuário.');
-  }
-
-  return data;
-};
-
 toggleButtons.forEach((toggleButton) => {
   const eyeOffIcon = toggleButton.querySelector('[data-eye-off]');
   const eyeIcon = toggleButton.querySelector('[data-eye]');
@@ -80,41 +63,6 @@ toggleButtons.forEach((toggleButton) => {
   });
 });
 
-registerForm?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  const nome = document.getElementById('register-name')?.value?.trim() || '';
-  const tipo = document.getElementById('register-role')?.value || '';
-  const login = document.getElementById('register-user')?.value?.trim() || '';
-  const senha = document.getElementById('register-password')?.value || '';
-  const confirmarSenha = document.getElementById('register-password-confirm')?.value || '';
-
-  if (!nome || !tipo || !login || !senha || !confirmarSenha) {
-    window.alert('Preencha todos os campos para concluir o cadastro.');
-    return;
-  }
-
-  if (senha !== confirmarSenha) {
-    window.alert('As senhas digitadas não conferem.');
-    return;
-  }
-
-  try {
-    await registerUser({ nome, tipo, login, senha });
-    if (typeof showToast === 'function') {
-      showToast('Cadastro realizado com sucesso! Redirecionando para o login.', 'success', 2400);
-    } else {
-      window.alert('Cadastro realizado com sucesso!');
-    }
-
-    setTimeout(() => {
-      window.location.href = 'index.html?cadastro_sucesso=1';
-    }, 1500);
-  } catch (error) {
-    window.alert(error.message || 'Não foi possível concluir o cadastro.');
-  }
-});
-
 loginForm?.addEventListener('submit', (event) => {
   event.preventDefault();
 
@@ -128,13 +76,6 @@ loginForm?.addEventListener('submit', (event) => {
 
   loginToSystem(usuario, senha);
 });
-
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('cadastro_sucesso') === '1') {
-  if (typeof showToast === 'function') {
-    showToast('Usuário cadastrado com sucesso! Faça login com sua nova credencial.', 'success', 3000);
-  }
-}
 
 forgotPasswordLink?.addEventListener('click', (event) => {
   event.preventDefault();

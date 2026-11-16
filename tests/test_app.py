@@ -1,13 +1,48 @@
 import time
 import unittest
 import uuid
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
+import app as app_module
 from app import app
+from itsdangerous import URLSafeTimedSerializer
+from werkzeug.security import check_password_hash, generate_password_hash
 
 
 class MercadinhoAppTests(unittest.TestCase):
     def setUp(self):
         self.client = app.test_client()
+        self.original_secret_key = app.config.get('SECRET_KEY')
+        app.config['SECRET_KEY'] = 'test-only-secret-key'
+
+        self.original_safe_query = app_module.safe_query
+        users = self.original_safe_query('usuario', '*')
+        active_user = next((user for user in users if bool(user.get('ativo'))), None)
+        if active_user is None:
+            self.fail('Os testes integrados precisam de ao menos um usuário ativo no Supabase.')
+
+        self.test_user = {
+            **active_user,
+            'tipo': 'DONO',
+            'permissoes': ['painel', 'caixa', 'produtos', 'entradas', 'saidas', 'relatorios', 'fornecedores']
+        }
+
+        def safe_query_with_test_user(table_name, select='*', **kwargs):
+            if table_name == 'usuario' and kwargs.get('id_usuario') == self.test_user['id_usuario']:
+                return [self.test_user]
+            return self.original_safe_query(table_name, select, **kwargs)
+
+        self.user_query_patcher = patch('app.safe_query', side_effect=safe_query_with_test_user)
+        self.user_query_patcher.start()
+
+        serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'], salt='mercadinho-auth')
+        token = serializer.dumps({'id_usuario': self.test_user['id_usuario']})
+        self.client.environ_base['HTTP_AUTHORIZATION'] = f'Bearer {token}'
+
+    def tearDown(self):
+        self.user_query_patcher.stop()
+        app.config['SECRET_KEY'] = self.original_secret_key
 
     def test_health_endpoint(self):
         response = self.client.get('/api/health')
@@ -37,6 +72,116 @@ class MercadinhoAppTests(unittest.TestCase):
         response = self.client.post('/api/auth/login', json={'usuario': 'operador', 'senha': 'hash_teste'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()['ok'], True)
+
+    def test_login_migrates_legacy_password_to_hash(self):
+        user = {
+            'id_usuario': 42,
+            'login': 'operador_legado',
+            'tipo': 'FUNCIONARIO',
+            'ativo': True,
+            'senha': 'senha_antiga'
+        }
+
+        with patch('app.supabase', object()), \
+                patch('app.get_user_by_login', return_value=user), \
+                patch('app.save_user_password_hash', return_value=True) as save_password:
+            response = self.client.post('/api/auth/login', json={
+                'usuario': 'operador_legado',
+                'senha': 'senha_antiga'
+            })
+
+        self.assertEqual(response.status_code, 200)
+        saved_hash = save_password.call_args[0][1]
+        self.assertNotEqual(saved_hash, 'senha_antiga')
+        self.assertTrue(check_password_hash(saved_hash, 'senha_antiga'))
+
+    def test_login_accepts_hashed_password(self):
+        user = {
+            'id_usuario': 42,
+            'login': 'operador_hash',
+            'tipo': 'FUNCIONARIO',
+            'ativo': True,
+            'senha': generate_password_hash('senha_segura')
+        }
+
+        with patch('app.supabase', object()), \
+                patch('app.get_user_by_login', return_value=user):
+            response = self.client.post('/api/auth/login', json={
+                'usuario': 'operador_hash',
+                'senha': 'senha_segura'
+            })
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_login_rejects_malformed_password_hash(self):
+        user = {
+            'id_usuario': 42,
+            'login': 'operador_hash_invalido',
+            'tipo': 'FUNCIONARIO',
+            'ativo': True,
+            'senha': 'scrypt:invalido'
+        }
+
+        with patch('app.supabase', object()), \
+                patch('app.get_user_by_login', return_value=user):
+            response = self.client.post('/api/auth/login', json={
+                'usuario': 'operador_hash_invalido',
+                'senha': 'senha'
+            })
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_login_does_not_succeed_when_legacy_password_migration_fails(self):
+        user = {
+            'id_usuario': 42,
+            'login': 'operador_legado',
+            'tipo': 'FUNCIONARIO',
+            'ativo': True,
+            'senha': 'senha_antiga'
+        }
+
+        with patch('app.supabase', object()), \
+                patch('app.get_user_by_login', return_value=user), \
+                patch('app.save_user_password_hash', return_value=False):
+            response = self.client.post('/api/auth/login', json={
+                'usuario': 'operador_legado',
+                'senha': 'senha_antiga'
+            })
+
+        self.assertEqual(response.status_code, 500)
+
+    def test_user_creation_stores_password_as_hash(self):
+        payload = {
+            'nome': 'Usuário Cadastro Teste',
+            'tipo': 'FUNCIONARIO',
+            'login': 'cadastro_hash_teste',
+            'senha': 'senha_teste_123'
+        }
+
+        def user_query(table_name, select='*', **kwargs):
+            if table_name == 'usuario' and kwargs.get('id_usuario') == self.test_user['id_usuario']:
+                return [self.test_user]
+            return []
+
+        with patch('app.supabase', object()), \
+                patch('app.safe_query', side_effect=user_query), \
+                patch('app.safe_insert', return_value={
+                    'id_usuario': 123,
+                    'login': payload['login'],
+                    'tipo': payload['tipo'],
+                    'permissoes': ['painel', 'caixa', 'entradas', 'saidas', 'produtos'],
+                    'ativo': True
+                }) as insert_user:
+            response = self.client.post('/api/usuarios', json=payload)
+
+        self.assertEqual(response.status_code, 201)
+        saved_password = insert_user.call_args[0][1]['senha']
+        self.assertNotEqual(saved_password, payload['senha'])
+        self.assertTrue(check_password_hash(saved_password, payload['senha']))
+        self.assertEqual(
+            insert_user.call_args[0][1]['permissoes'],
+            ['painel', 'caixa', 'produtos', 'entradas', 'saidas']
+        )
 
     def test_create_product_with_valid_data(self):
         payload = {
@@ -118,26 +263,36 @@ class MercadinhoAppTests(unittest.TestCase):
         self.assertEqual(response.get_json()['preco'], '9.99')
         self.assertEqual(response.get_json()['nome'], 'Produto para editar atualizado')
 
-    def test_register_user_creates_account_and_allows_login(self):
+    def test_owner_creates_user_and_allows_login(self):
         unique = uuid.uuid4().hex[:8]
         payload = {
             'nome': 'Usuário Cadastro Teste',
             'tipo': 'FUNCIONARIO',
             'login': f'cadastro_{unique}',
-            'senha': 'senha_teste_123'
+            'senha': 'senha_teste_123',
+            'permissoes': ['painel', 'produtos']
         }
 
-        response = self.client.post('/api/auth/register', json=payload)
-        self.assertEqual(response.status_code, 200)
+        response = self.client.post('/api/usuarios', json=payload)
+        self.assertEqual(response.status_code, 201)
         self.assertTrue(response.get_json()['ok'])
-        self.assertEqual(response.get_json()['usuario'], payload['login'])
+        created_user = response.get_json()['usuario']
+        try:
+            self.assertEqual(created_user['login'], payload['login'])
+            self.assertEqual(created_user['permissoes'], payload['permissoes'])
 
-        login_response = self.client.post('/api/auth/login', json={
-            'usuario': payload['login'],
-            'senha': payload['senha']
-        })
-        self.assertEqual(login_response.status_code, 200)
-        self.assertTrue(login_response.get_json()['ok'])
+            login_response = self.client.post('/api/auth/login', json={
+                'usuario': payload['login'],
+                'senha': payload['senha']
+            })
+            self.assertEqual(login_response.status_code, 200)
+            self.assertTrue(login_response.get_json()['ok'])
+        finally:
+            deactivate_response = self.client.put(
+                f"/api/usuarios/{created_user['id_usuario']}",
+                json={'ativo': False}
+            )
+        self.assertEqual(deactivate_response.status_code, 200)
 
     def test_create_and_edit_supplier(self):
         email = f'teste_{uuid.uuid4()}@fornecedor.com'
@@ -201,6 +356,355 @@ class MercadinhoAppTests(unittest.TestCase):
         })
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json()['ok'], False)
+
+
+class AuthenticationTests(unittest.TestCase):
+    def setUp(self):
+        self.client = app.test_client()
+        self.original_secret_key = app.config.get('SECRET_KEY')
+        app.config['SECRET_KEY'] = 'test-only-secret-key'
+        self.user = {
+            'id_usuario': 987654,
+            'login': 'teste_token',
+            'tipo': 'FUNCIONARIO',
+            'ativo': True,
+            'permissoes': ['entradas']
+        }
+
+        def safe_query_with_test_user(table_name, select='*', **kwargs):
+            if table_name == 'usuario' and kwargs.get('id_usuario') == self.user['id_usuario']:
+                return [dict(self.user)]
+            if table_name == 'movimentacao':
+                return [
+                    {'tipo': 'ENTRADA', 'id_produto': 1, 'quantidade': '1'},
+                    {'tipo': 'SAIDA', 'id_produto': 1, 'quantidade': '1'},
+                    {'tipo': 'AJUSTE', 'id_produto': 1, 'quantidade': '1'}
+                ]
+            return []
+
+        self.safe_query_patcher = patch('app.safe_query', side_effect=safe_query_with_test_user)
+        self.safe_query_patcher.start()
+        self.serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'], salt='mercadinho-auth')
+        self.token = self.serializer.dumps({'id_usuario': self.user['id_usuario']})
+
+    def tearDown(self):
+        self.safe_query_patcher.stop()
+        app.config['SECRET_KEY'] = self.original_secret_key
+
+    def _headers(self, token=None):
+        if token is None:
+            token = self.token
+        return {'Authorization': f'Bearer {token}'}
+
+    def test_protected_route_returns_401_without_or_with_invalid_token(self):
+        missing_token = self.client.get('/api/produtos')
+        invalid_token = self.client.get('/api/produtos', headers=self._headers('inválido'))
+
+        self.assertEqual(missing_token.status_code, 401)
+        self.assertEqual(invalid_token.status_code, 401)
+
+    def test_protected_route_returns_401_for_inactive_user(self):
+        self.user['ativo'] = False
+
+        response = self.client.get('/api/produtos', headers=self._headers())
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_expired_token_returns_401(self):
+        with patch('itsdangerous.timed.time.time', return_value=1000):
+            token = self.serializer.dumps({'id_usuario': self.user['id_usuario']})
+        with patch('itsdangerous.timed.time.time', return_value=1000 + 8 * 60 * 60 + 1):
+            response = self.client.get('/api/produtos', headers=self._headers(token))
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_missing_screen_permission_returns_expected_403_json(self):
+        response = self.client.get('/api/relatorios', headers=self._headers())
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.get_json(), {'ok': False, 'erro': 'Sem permissão'})
+
+    def test_employee_cannot_register_users(self):
+        old_register_response = self.client.post('/api/auth/register', json={}, headers=self._headers())
+        list_response = self.client.get('/api/usuarios', headers=self._headers())
+        create_response = self.client.post('/api/usuarios', json={}, headers=self._headers())
+
+        self.assertEqual(old_register_response.status_code, 405)
+        self.assertEqual(list_response.status_code, 403)
+        self.assertEqual(create_response.status_code, 403)
+
+    def test_user_management_page_is_available(self):
+        response = self.client.get('/usuarios')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Telas liberadas'.encode(), response.data)
+        response.close()
+
+    def test_owner_lists_users_without_exposing_passwords(self):
+        self.user['tipo'] = 'DONO'
+        listed_user = {
+            **self.user,
+            'senha': 'scrypt:hash'
+        }
+
+        def user_query(table_name, select='*', **kwargs):
+            if table_name == 'usuario':
+                if kwargs.get('id_usuario') == self.user['id_usuario']:
+                    return [self.user]
+                return [listed_user]
+            return []
+
+        with patch('app.supabase', object()), \
+                patch('app.safe_query', side_effect=user_query):
+            response = self.client.get('/api/usuarios', headers=self._headers())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.get_json()['items']), 1)
+        self.assertNotIn('senha', response.get_json()['items'][0])
+
+    def test_create_user_rejects_unknown_permissions(self):
+        self.user['tipo'] = 'DONO'
+        with patch('app.supabase', object()), \
+                patch('app.safe_query', side_effect=lambda table_name, select='*', **kwargs: (
+                    [self.user] if table_name == 'usuario' and kwargs.get('id_usuario') == self.user['id_usuario'] else []
+                )), \
+                patch('app.safe_insert') as insert_user:
+            response = self.client.post('/api/usuarios', json={
+                'nome': 'Funcionário',
+                'login': 'funcionario_novo',
+                'senha': 'senha_forte',
+                'tipo': 'FUNCIONARIO',
+                'permissoes': ['painel', 'financeiro']
+            }, headers=self._headers())
+
+        self.assertEqual(response.status_code, 400)
+        insert_user.assert_not_called()
+
+    def test_create_user_rejects_null_permissions(self):
+        self.user['tipo'] = 'DONO'
+        with patch('app.supabase', object()), \
+                patch('app.safe_query', side_effect=lambda table_name, select='*', **kwargs: (
+                    [self.user] if table_name == 'usuario' and kwargs.get('id_usuario') == self.user['id_usuario'] else []
+                )), \
+                patch('app.safe_insert') as insert_user:
+            response = self.client.post('/api/usuarios', json={
+                'nome': 'Funcionário',
+                'login': 'funcionario_novo',
+                'senha': 'senha_forte',
+                'tipo': 'FUNCIONARIO',
+                'permissoes': None
+            }, headers=self._headers())
+
+        self.assertEqual(response.status_code, 400)
+        insert_user.assert_not_called()
+
+    def test_update_user_changes_profile_permissions_and_password(self):
+        self.user['tipo'] = 'DONO'
+        target_user = {
+            'id_usuario': 321,
+            'nome': 'Funcionário antigo',
+            'login': 'funcionario_antigo',
+            'tipo': 'FUNCIONARIO',
+            'permissoes': ['painel'],
+            'ativo': True,
+            'senha': 'hash_antigo'
+        }
+
+        def user_query(table_name, select='*', **kwargs):
+            if table_name != 'usuario':
+                return []
+            user_id = kwargs.get('id_usuario')
+            if user_id == self.user['id_usuario']:
+                return [self.user]
+            if user_id == target_user['id_usuario']:
+                return [target_user]
+            return []
+
+        updated_record = {
+            **target_user,
+            'nome': 'Funcionário atualizado',
+            'tipo': 'FUNCIONARIO',
+            'permissoes': ['painel', 'produtos'],
+            'ativo': False
+        }
+        update_query = Mock()
+        update_query.execute.return_value = SimpleNamespace(data=[updated_record])
+        database = Mock()
+        database.table.return_value.update.return_value.eq.return_value = update_query
+
+        with patch('app.supabase', database), \
+                patch('app.safe_query', side_effect=user_query):
+            response = self.client.put('/api/usuarios/321', json={
+                'nome': 'Funcionário atualizado',
+                'tipo': 'FUNCIONARIO',
+                'permissoes': ['painel', 'produtos'],
+                'ativo': False,
+                'senha': 'nova_senha_segura'
+            }, headers=self._headers())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('senha', response.get_json()['usuario'])
+        update_payload = database.table.return_value.update.call_args[0][0]
+        self.assertTrue(check_password_hash(update_payload['senha'], 'nova_senha_segura'))
+        self.assertEqual(update_payload['permissoes'], ['painel', 'produtos'])
+
+    def test_update_user_rejects_unknown_permissions(self):
+        self.user['tipo'] = 'DONO'
+        target_user = {
+            'id_usuario': 321,
+            'nome': 'Funcionário',
+            'login': 'funcionario',
+            'tipo': 'FUNCIONARIO',
+            'permissoes': ['painel'],
+            'ativo': True
+        }
+
+        def user_query(table_name, select='*', **kwargs):
+            if table_name != 'usuario':
+                return []
+            user_id = kwargs.get('id_usuario')
+            return [self.user] if user_id == self.user['id_usuario'] else [target_user]
+
+        with patch('app.supabase', object()), \
+                patch('app.safe_query', side_effect=user_query):
+            response = self.client.put('/api/usuarios/321', json={
+                'permissoes': ['caixa', 'estoque_total']
+            }, headers=self._headers())
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_owner_cannot_inactivate_or_demote_self(self):
+        self.user['tipo'] = 'DONO'
+        with patch('app.supabase') as database, \
+                patch('app.safe_query', side_effect=lambda table_name, select='*', **kwargs: [self.user]):
+            inactive_response = self.client.put('/api/usuarios/987654', json={
+                'ativo': False
+            }, headers=self._headers())
+            demote_response = self.client.put('/api/usuarios/987654', json={
+                'tipo': 'FUNCIONARIO'
+            }, headers=self._headers())
+
+        self.assertEqual(inactive_response.status_code, 400)
+        self.assertEqual(demote_response.status_code, 400)
+        database.table.assert_not_called()
+
+    def test_owner_bypasses_screen_permissions(self):
+        self.user['tipo'] = 'DONO'
+
+        response = self.client.get('/api/relatorios', headers=self._headers())
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_panel_permission_can_read_products_used_by_panel(self):
+        self.user['permissoes'] = ['painel']
+
+        response = self.client.get('/api/produtos', headers=self._headers())
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_reports_permission_can_read_products_and_lots_used_by_reports(self):
+        self.user['permissoes'] = ['relatorios']
+
+        products_response = self.client.get('/api/produtos', headers=self._headers())
+        lots_response = self.client.get('/api/lotes', headers=self._headers())
+
+        self.assertEqual(products_response.status_code, 200)
+        self.assertEqual(lots_response.status_code, 200)
+
+    def test_movement_list_returns_only_permitted_types(self):
+        response = self.client.get('/api/movimentacoes', headers=self._headers())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item['tipo'] for item in response.get_json()['items']],
+            ['ENTRADA']
+        )
+
+    def test_invalid_movement_type_returns_400_before_permission_check(self):
+        response = self.client.post('/api/movimentacoes', json={
+            'tipo': 'INVALIDO',
+            'id_produto': 1
+        }, headers=self._headers())
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json()['message'], 'Tipo de movimentação inválido.')
+
+    def test_entry_permission_cannot_submit_exit(self):
+        response = self.client.post('/api/movimentacoes', json={
+            'tipo': 'SAIDA',
+            'id_produto': 1
+        }, headers=self._headers())
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_cash_permission_can_submit_exit(self):
+        self.user['permissoes'] = ['caixa']
+        with patch('app.get_product_by_id', return_value=None):
+            response = self.client.post('/api/movimentacoes', json={
+                'tipo': 'SAIDA',
+                'id_produto': 999
+            }, headers=self._headers())
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_movement_uses_authenticated_user_instead_of_payload(self):
+        self.user['permissoes'] = ['entradas']
+        with patch('app.get_product_by_id', return_value={'id_produto': 1}), \
+                patch('app.get_product_price', return_value=1), \
+                patch('app.safe_insert', side_effect=[
+                    {'id_lote': 12},
+                    {'id_movimentacao': 34}
+                ]) as insert:
+            response = self.client.post('/api/movimentacoes', json={
+                'tipo': 'ENTRADA',
+                'id_produto': 1,
+                'id_fornecedor': 1,
+                'quantidade': 2,
+                'usuario': 'outro_usuario'
+            }, headers=self._headers())
+
+        self.assertEqual(response.status_code, 200)
+        saved_movement = insert.call_args_list[1][0][1]
+        self.assertEqual(saved_movement['id_usuario'], self.user['id_usuario'])
+
+    def test_employee_cannot_delete_movements(self):
+        response = self.client.delete('/api/movimentacoes/1', headers=self._headers())
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_options_preflight_is_public_and_includes_auth_headers(self):
+        response = self.client.options('/api/produtos')
+
+        self.assertEqual(response.status_code, 204)
+        self.assertIn('Authorization', response.headers['Access-Control-Allow-Headers'])
+        self.assertEqual(
+            response.headers['Access-Control-Allow-Methods'],
+            'GET, POST, PUT, DELETE, OPTIONS'
+        )
+
+    def test_login_returns_signed_token_and_permissions(self):
+        user = {
+            'id_usuario': 123,
+            'login': 'teste_login',
+            'tipo': 'FUNCIONARIO',
+            'ativo': True,
+            'permissoes': ['painel', 'entradas'],
+            'senha': generate_password_hash('senha_correta')
+        }
+        with patch('app.supabase', object()), \
+                patch('app.get_user_by_login', return_value=user):
+            response = self.client.post('/api/auth/login', json={
+                'usuario': 'teste_login',
+                'senha': 'senha_correta'
+            })
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload['permissoes'], user['permissoes'])
+        self.assertEqual(
+            self.serializer.loads(payload['token'], max_age=8 * 60 * 60),
+            {'id_usuario': user['id_usuario']}
+        )
 
 
 if __name__ == '__main__':

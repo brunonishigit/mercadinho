@@ -1,0 +1,79 @@
+.users-stats {
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+}
+
+.users-filters {
+  grid-template-columns: minmax(240px, 2fr) minmax(180px, 1fr);
+}
+
+.user-modal {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.permissions-field {
+  border: 1px solid var(--field-border);
+  border-radius: 10px;
+  margin: 0 0 16px;
+  padding: 12px;
+}
+
+.permissions-field legend {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 0 6px;
+}
+
+.permissions-help,
+.user-password-field small {
+  color: var(--muted);
+  display: block;
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+
+.permissions-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.permission-option {
+  align-items: center;
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 9px;
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+.permission-option input {
+  accent-color: var(--primary);
+  height: 17px;
+  width: 17px;
+}
+
+.permission-option.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.user-active-field[hidden] {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .users-stats,
+  .users-filters,
+  .permissions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #users-table {
+    min-width: 720px;
+  }
+}
