@@ -1,3 +1,6 @@
+import apiClient, { getSessionUser, isOwner } from '../services/api/client.js';
+import './session.js';
+
 const tbody = document.getElementById('entradas-table-body');
 const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const entryModal = document.getElementById('entry-modal');
@@ -54,7 +57,7 @@ const updateEntryStats = async () => {
   if (!cards.length) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/movimentacoes`);
     const payload = await response.json();
     const items = (Array.isArray(payload?.items) ? payload.items : []).filter((item) => String(item.tipo || '').toUpperCase() === 'ENTRADA');
 
@@ -95,8 +98,8 @@ const closeEntryModal = () => {
 async function loadEntryReferences() {
   try {
     const [productsResponse, suppliersResponse] = await Promise.all([
-      fetch(`${API_BASE_URL}/api/produtos`),
-      fetch(`${API_BASE_URL}/api/fornecedores`)
+      apiClient.fetch(`${API_BASE_URL}/api/produtos`),
+      apiClient.fetch(`${API_BASE_URL}/api/fornecedores`)
     ]);
 
     const productsData = await productsResponse.json();
@@ -229,7 +232,7 @@ const renderEntries = async () => {
   if (!tbody) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/movimentacoes`);
     const payload = await response.json();
     const items = (Array.isArray(payload?.items) ? payload.items : []).filter((item) => {
       const tipo = String(item.tipo || '').toUpperCase();
@@ -262,7 +265,7 @@ const renderEntries = async () => {
           <td>R$ ${Number(item.valor_total || item.valor_unitario || item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td>${item.observacao || '—'}</td>
           <td class="action-cell">
-            <button class="delete-movement-button" type="button" data-delete-movement="${item.id_movimentacao || ''}" aria-label="Excluir entrada">Excluir</button>
+            ${isOwner() ? `<button class="delete-movement-button" type="button" data-delete-movement="${item.id_movimentacao || ''}" aria-label="Excluir entrada">Excluir</button>` : ''}
           </td>
         </tr>
       `;
@@ -277,7 +280,7 @@ const renderEntries = async () => {
         }
 
         try {
-          const response = await fetch(`${API_BASE_URL}/api/movimentacoes/${movementId}`, { method: 'DELETE' });
+          const response = await apiClient.fetch(`${API_BASE_URL}/api/movimentacoes/${movementId}`, { method: 'DELETE' });
           const data = await response.json();
           if (!response.ok) {
             throw new Error(data.message || 'Não foi possível excluir a entrada.');
@@ -314,7 +317,7 @@ entryForm?.addEventListener('submit', async (event) => {
     data_entrada: document.getElementById('entry-date')?.value || new Date().toISOString().slice(0, 10),
     data_validade: document.getElementById('entry-validity')?.value || '',
     observacao: document.getElementById('entry-observation')?.value?.trim() || '',
-    usuario: localStorage.getItem('mercadinho_usuario') || 'operador'
+    usuario: getSessionUser()?.login || 'operador'
   };
 
   if (!payload.id_produto || !payload.id_fornecedor || !payload.quantidade) {
@@ -323,7 +326,7 @@ entryForm?.addEventListener('submit', async (event) => {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`, {
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/movimentacoes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -355,18 +358,3 @@ setupFilterDropdowns();
 loadEntryReferences();
 renderEntries();
 updateEntryStats();
-
-document.querySelectorAll('[data-link]').forEach((link) => {
-  link.addEventListener('click', () => {
-    const destino = link.getAttribute('data-link');
-    if (destino) {
-      window.location.href = destino;
-    }
-  });
-});
-
-document.querySelectorAll('[data-return-login]').forEach((button) => {
-  button.addEventListener('click', () => {
-    window.location.href = 'index.html';
-  });
-});

@@ -1,3 +1,6 @@
+import apiClient from '../services/api/client.js';
+import './session.js';
+
 const tbody = document.getElementById('fornecedores-table-body');
 const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const supplierModal = document.getElementById('supplier-modal');
@@ -54,7 +57,7 @@ const updateSupplierStats = async () => {
   if (!cards.length) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/fornecedores`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/fornecedores`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
 
@@ -227,7 +230,7 @@ const renderSuppliers = async () => {
   if (!tbody) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/fornecedores`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/fornecedores`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
     const filteredItems = applySupplierFilters(items);
@@ -304,7 +307,7 @@ supplierForm?.addEventListener('submit', async (event) => {
     const url = isEditing ? `${API_BASE_URL}/api/fornecedores/${editingSupplierId}` : `${API_BASE_URL}/api/fornecedores`;
     const method = isEditing ? 'PUT' : 'POST';
 
-    const response = await fetch(url, {
+    const response = await apiClient.fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -333,7 +336,7 @@ const initializeSupplierModal = () => {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/fornecedores/${editingSupplierId}`, {
+      const response = await apiClient.fetch(`${API_BASE_URL}/api/fornecedores/${editingSupplierId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -369,18 +372,3 @@ initializeSupplierModal();
 setupSupplierFilterDropdowns();
 renderSuppliers();
 updateSupplierStats();
-
-document.querySelectorAll('[data-link]').forEach((link) => {
-  link.addEventListener('click', () => {
-    const destino = link.getAttribute('data-link');
-    if (destino) {
-      window.location.href = destino;
-    }
-  });
-});
-
-document.querySelectorAll('[data-return-login]').forEach((button) => {
-  button.addEventListener('click', () => {
-    window.location.href = 'index.html';
-  });
-});

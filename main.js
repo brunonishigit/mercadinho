@@ -1,9 +1,9 @@
+import apiClient, { saveSession } from './services/api/client.js';
+
 const passwordInput = document.getElementById('login-password');
 const toggleButtons = document.querySelectorAll('[data-password-toggle]');
 const loginForm = document.querySelector('.login-form');
 const forgotPasswordLink = document.querySelector('.forgot-password');
-const API_BASE = window.location.origin || 'http://127.0.0.1:8000';
-
 const parseJsonResponse = async (response) => {
   const text = await response.text();
 
@@ -20,7 +20,7 @@ const parseJsonResponse = async (response) => {
 
 const loginToSystem = async (usuario, senha) => {
   try {
-    const response = await fetch(`${API_BASE}/api/auth/login`, {
+    const response = await apiClient.fetch('/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -34,8 +34,12 @@ const loginToSystem = async (usuario, senha) => {
       throw new Error(data.message || 'Não foi possível entrar no sistema.');
     }
 
-    localStorage.setItem('mercadinho_usuario', data.usuario || usuario);
-    localStorage.setItem('mercadinho_perfil', data.perfil || 'FUNCIONARIO');
+    saveSession(data.token, {
+      nome: data.nome || data.usuario || usuario,
+      login: data.usuario || usuario,
+      perfil: data.perfil || 'FUNCIONARIO',
+      permissoes: Array.isArray(data.permissoes) ? data.permissoes : []
+    });
     window.location.href = 'painel.html';
   } catch (error) {
     window.alert(error.message || 'Erro ao autenticar.');
@@ -80,3 +84,7 @@ loginForm?.addEventListener('submit', (event) => {
 forgotPasswordLink?.addEventListener('click', (event) => {
   event.preventDefault();
 });
+
+if (new URLSearchParams(window.location.search).has('sem-telas')) {
+  window.showToast?.('Sua conta não tem telas liberadas. Peça ao Dono para ajustar suas permissões.', 'warning', 5000);
+}

@@ -1,7 +1,7 @@
+import apiClient from '../services/api/client.js';
+import { getSessionUser } from './session.js';
+
 (() => {
-  const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
-  const token = localStorage.getItem('mercadinho_token');
-  const profile = String(localStorage.getItem('mercadinho_perfil') || '').toUpperCase();
   const tbody = document.getElementById('users-table-body');
   const userForm = document.getElementById('user-form');
   const userModal = document.getElementById('user-modal');
@@ -20,16 +20,6 @@
   let editingUser = null;
   let currentStatusFilter = 'todos';
 
-  if (!token) {
-    window.location.replace('index.html');
-    return;
-  }
-
-  if (profile !== 'DONO') {
-    window.location.replace('painel.html');
-    return;
-  }
-
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
     '&': '&amp;',
     '<': '&lt;',
@@ -39,12 +29,7 @@
   })[character]);
 
   const apiRequest = async (path, options = {}) => {
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {})
-    };
-    const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+    const response = await apiClient.fetch(path, options);
     const text = await response.text();
     let payload = {};
     if (text) {
@@ -55,18 +40,12 @@
       }
     }
 
-    if (response.status === 401) {
-      localStorage.removeItem('mercadinho_token');
-      localStorage.removeItem('mercadinho_usuario');
-      localStorage.removeItem('mercadinho_perfil');
-      window.location.replace('index.html');
-      throw new Error('Sua sessão terminou. Entre novamente.');
-    }
-    if (response.status === 403) {
-      throw new Error('Você não tem permissão para gerenciar usuários.');
-    }
     if (!response.ok) {
-      throw new Error(payload.message || 'Não foi possível concluir a operação.');
+      const error = new Error(response.status === 403
+        ? 'Você não tem permissão para gerenciar usuários.'
+        : payload.message || 'Não foi possível concluir a operação.');
+      error.status = response.status;
+      throw error;
     }
     return payload;
   };
@@ -152,8 +131,9 @@
     editingUser = user;
     userForm.reset();
     const isEditing = Boolean(user);
+    const currentUser = getSessionUser();
     const isSelf = isEditing
-      && String(user.login || '').toLowerCase() === String(localStorage.getItem('mercadinho_usuario') || '').toLowerCase();
+      && String(user.login || '').toLowerCase() === String(currentUser?.login || '').toLowerCase();
     document.getElementById('user-modal-title').textContent = isEditing ? 'Editar usuário' : 'Novo usuário';
     document.getElementById('user-modal-subtitle').textContent = isEditing
       ? 'Atualize o perfil, as telas liberadas ou redefina a senha.'
@@ -263,21 +243,6 @@
     } catch (error) {
       window.alert(error.message || 'Não foi possível salvar o usuário.');
     }
-  });
-
-  document.querySelectorAll('[data-link]').forEach((link) => {
-    link.addEventListener('click', () => {
-      const destination = link.getAttribute('data-link');
-      if (destination) window.location.href = destination;
-    });
-  });
-  document.querySelectorAll('[data-return-login]').forEach((button) => {
-    button.addEventListener('click', () => {
-      localStorage.removeItem('mercadinho_token');
-      localStorage.removeItem('mercadinho_usuario');
-      localStorage.removeItem('mercadinho_perfil');
-      window.location.href = 'index.html';
-    });
   });
 
   loadUsers();
