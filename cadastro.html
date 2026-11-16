@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mercadinho Seu João | Cadastro</title>
+  <meta http-equiv="refresh" content="0;url=index.html" />
+  <title>Cadastro restrito | Mercadinho Seu João</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -85,7 +86,16 @@
     </section>
 
     <section class="login-card" aria-label="Cadastro de usuário">
-      <form id="register-form" class="login-form" action="index.html" method="get">
+      <div class="login-form">
+        <header class="card-header">
+          <h1>Cadastro feito pelo Dono</h1>
+          <p>Para criar uma conta, peça ao Dono do mercadinho para cadastrar seu usuário.</p>
+        </header>
+        <button class="secondary-button" type="button" onclick="window.location.href='index.html'">
+          <span>Voltar para o login</span>
+        </button>
+      </div>
+      <form id="register-form" class="login-form" action="index.html" method="get" hidden>
         <header class="card-header">
           <h1>Criar sua conta</h1>
           <p>Preencha os dados abaixo para começar a usar o sistema do Mercadinho Seu João.</p>

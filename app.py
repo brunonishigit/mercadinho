@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime
 from urllib.parse import urlsplit, urlunsplit
 
-from flask import Flask, g, jsonify, request, send_from_directory
+from flask import Flask, g, jsonify, redirect, request, send_from_directory
 from dotenv import load_dotenv
 from supabase import create_client
 from itsdangerous import BadSignature, URLSafeTimedSerializer
@@ -16,6 +16,16 @@ app = Flask(__name__, static_folder='.', static_url_path='')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 TOKEN_MAX_AGE_SECONDS = 8 * 60 * 60
 TOKEN_SALT = 'mercadinho-auth'
+TELAS_PERMITIDAS = (
+    'painel',
+    'caixa',
+    'produtos',
+    'entradas',
+    'saidas',
+    'relatorios',
+    'fornecedores'
+)
+PERMISSOES_PADRAO_FUNCIONARIO = ('painel', 'caixa', 'entradas', 'saidas', 'produtos')
 
 
 @app.route('/')
@@ -30,7 +40,7 @@ def serve_login_alias():
 
 @app.route('/cadastro')
 def serve_cadastro_alias():
-    return send_from_directory(app.static_folder, 'cadastro.html')
+    return redirect('/login')
 
 
 @app.route('/painel')
@@ -66,6 +76,11 @@ def serve_caixa_alias():
 @app.route('/fornecedores')
 def serve_fornecedores_alias():
     return send_from_directory(app.static_folder, 'fornecedores.html')
+
+
+@app.route('/usuarios')
+def serve_usuarios_alias():
+    return send_from_directory(app.static_folder, 'usuarios.html')
 
 
 @app.route('/<path:filename>')
@@ -222,6 +237,35 @@ def usuario_do_token(request):
     if not users or not bool(users[0].get('ativo', False)):
         return None
     return users[0]
+
+
+def _normalize_permissions(raw_permissions, default_permissions=None):
+    if raw_permissions is None:
+        if default_permissions is None:
+            raise ValueError('A lista de permissões é inválida.')
+        raw_permissions = list(default_permissions)
+    if not isinstance(raw_permissions, list) or any(
+        not isinstance(permission, str) for permission in raw_permissions
+    ):
+        raise ValueError('A lista de permissões é inválida.')
+
+    unknown_permissions = set(raw_permissions) - set(TELAS_PERMITIDAS)
+    if unknown_permissions:
+        raise ValueError('A lista contém permissões desconhecidas.')
+
+    selected_permissions = set(raw_permissions)
+    return [screen for screen in TELAS_PERMITIDAS if screen in selected_permissions]
+
+
+def _public_user(user):
+    return {
+        'id_usuario': user.get('id_usuario'),
+        'nome': user.get('nome') or '',
+        'login': user.get('login') or '',
+        'tipo': user.get('tipo') or 'FUNCIONARIO',
+        'permissoes': user.get('permissoes') or [],
+        'ativo': bool(user.get('ativo', False))
+    }
 
 
 def _unauthorized_response():
@@ -526,47 +570,6 @@ def health():
     })
 
 
-@app.post('/api/auth/register')
-@login_required
-@somente_dono
-def register_user():
-    payload = request.get_json(silent=True) or {}
-    nome = str(payload.get('nome', '')).strip()
-    tipo = str(payload.get('tipo', 'FUNCIONARIO')).strip().upper()
-    login_name = str(payload.get('login', '')).strip()
-    senha = str(payload.get('senha', '')).strip()
-
-    if not nome or not login_name or not senha:
-        return jsonify({'ok': False, 'message': 'Nome, usuário e senha são obrigatórios.'}), 400
-
-    if tipo not in {'DONO', 'FUNCIONARIO'}:
-        tipo = 'FUNCIONARIO'
-
-    if get_user_by_login(login_name):
-        return jsonify({'ok': False, 'message': 'Este usuário já existe.'}), 409
-
-    if not supabase:
-        return jsonify({'ok': False, 'message': 'Banco não configurado.'}), 503
-
-    created = safe_insert('usuario', {
-        'nome': nome,
-        'login': login_name,
-        'senha': generate_password_hash(senha),
-        'tipo': tipo,
-        'ativo': True
-    })
-
-    if created is None:
-        return jsonify({'ok': False, 'message': 'Não foi possível criar o usuário no banco.'}), 500
-
-    return jsonify({
-        'ok': True,
-        'message': 'Usuário criado com sucesso.',
-        'usuario': str(created.get('login') or login_name),
-        'perfil': str(created.get('tipo') or tipo)
-    }), 200
-
-
 @app.post('/api/auth/login')
 def login():
     payload = request.get_json(silent=True) or {}
@@ -621,6 +624,145 @@ def login():
         'permissoes': permissoes,
         'message': 'Login realizado com sucesso.'
     })
+
+
+@app.get('/api/usuarios')
+@login_required
+@somente_dono
+def list_users():
+    if not supabase:
+        return jsonify({'ok': False, 'message': 'Banco não configurado.'}), 503
+
+    users = safe_query('usuario', '*')
+    ordered_users = sorted(users, key=lambda user: str(user.get('nome') or '').lower())
+    return jsonify({'items': [_public_user(user) for user in ordered_users]}), 200
+
+
+@app.post('/api/usuarios')
+@login_required
+@somente_dono
+def create_user():
+    if not supabase:
+        return jsonify({'ok': False, 'message': 'Banco não configurado.'}), 503
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'ok': False, 'message': 'Dados do usuário inválidos.'}), 400
+
+    nome = str(payload.get('nome') or '').strip()
+    login_name = str(payload.get('login') or '').strip()
+    senha = str(payload.get('senha') or '').strip()
+    tipo = str(payload.get('tipo', payload.get('perfil', 'FUNCIONARIO')) or 'FUNCIONARIO').strip().upper()
+
+    if not nome or not login_name or not senha:
+        return jsonify({'ok': False, 'message': 'Nome, usuário e senha são obrigatórios.'}), 400
+    if tipo not in {'DONO', 'FUNCIONARIO'}:
+        return jsonify({'ok': False, 'message': 'Perfil inválido.'}), 400
+
+    default_permissions = None
+    if 'permissoes' not in payload:
+        default_permissions = (
+            PERMISSOES_PADRAO_FUNCIONARIO if tipo == 'FUNCIONARIO' else TELAS_PERMITIDAS
+        )
+    try:
+        permissions = _normalize_permissions(payload.get('permissoes'), default_permissions)
+    except ValueError as error:
+        return jsonify({'ok': False, 'message': str(error)}), 400
+
+    existing_users = safe_query('usuario', '*')
+    if any(str(user.get('login') or '').strip().lower() == login_name.lower() for user in existing_users):
+        return jsonify({'ok': False, 'message': 'Este usuário já existe.'}), 409
+
+    user_payload = {
+        'nome': nome,
+        'login': login_name,
+        'senha': generate_password_hash(senha),
+        'tipo': tipo,
+        'permissoes': permissions,
+        'ativo': True
+    }
+    created = safe_insert('usuario', user_payload)
+    if created is None:
+        return jsonify({'ok': False, 'message': 'Não foi possível criar o usuário.'}), 500
+
+    return jsonify({
+        'ok': True,
+        'message': 'Usuário criado com sucesso.',
+        'usuario': _public_user({**user_payload, **created})
+    }), 201
+
+
+@app.put('/api/usuarios/<int:user_id>')
+@login_required
+@somente_dono
+def update_user(user_id):
+    if not supabase:
+        return jsonify({'ok': False, 'message': 'Banco não configurado.'}), 503
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'ok': False, 'message': 'Dados do usuário inválidos.'}), 400
+
+    existing_users = safe_query('usuario', '*', id_usuario=user_id)
+    if not existing_users:
+        return jsonify({'ok': False, 'message': 'Usuário não encontrado.'}), 404
+
+    existing = existing_users[0]
+    current_user = g.usuario_autenticado
+    is_self = str(current_user.get('id_usuario')) == str(user_id)
+    update_payload = {}
+
+    if 'nome' in payload:
+        nome = str(payload.get('nome') or '').strip()
+        if not nome:
+            return jsonify({'ok': False, 'message': 'Nome é obrigatório.'}), 400
+        update_payload['nome'] = nome
+
+    tipo = str(payload.get('tipo', payload.get('perfil', existing.get('tipo', 'FUNCIONARIO')))).strip().upper()
+    if tipo not in {'DONO', 'FUNCIONARIO'}:
+        return jsonify({'ok': False, 'message': 'Perfil inválido.'}), 400
+    if is_self and tipo != 'DONO':
+        return jsonify({'ok': False, 'message': 'O Dono não pode remover o próprio perfil.'}), 400
+    if 'tipo' in payload or 'perfil' in payload:
+        update_payload['tipo'] = tipo
+
+    if 'ativo' in payload:
+        ativo = payload['ativo']
+        if not isinstance(ativo, bool):
+            return jsonify({'ok': False, 'message': 'Status ativo inválido.'}), 400
+        if is_self and not ativo:
+            return jsonify({'ok': False, 'message': 'O Dono não pode inativar a si mesmo.'}), 400
+        update_payload['ativo'] = ativo
+
+    if 'permissoes' in payload:
+        try:
+            update_payload['permissoes'] = _normalize_permissions(payload['permissoes'])
+        except ValueError as error:
+            return jsonify({'ok': False, 'message': str(error)}), 400
+
+    senha = str(payload.get('senha') or '').strip()
+    if senha:
+        update_payload['senha'] = generate_password_hash(senha)
+
+    if not update_payload:
+        return jsonify({'ok': False, 'message': 'Nenhuma alteração informada.'}), 400
+
+    try:
+        response = (
+            supabase.table('usuario')
+            .update(update_payload)
+            .eq('id_usuario', user_id)
+            .execute()
+        )
+        updated = response.data[0] if response.data else {**existing, **update_payload}
+    except Exception:
+        return jsonify({'ok': False, 'message': 'Não foi possível atualizar o usuário.'}), 500
+
+    return jsonify({
+        'ok': True,
+        'message': 'Usuário atualizado com sucesso.',
+        'usuario': _public_user(updated)
+    }), 200
 
 
 @app.get('/api/categorias')
