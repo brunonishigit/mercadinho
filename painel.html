@@ -21,7 +21,7 @@
         </div>
 
         <nav class="nav" aria-label="Menu principal">
-          <button class="nav-item active" type="button">
+          <button class="nav-item active" type="button" data-link="painel.html">
             <span class="nav-icon">
               <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>
             </span>
@@ -68,6 +68,13 @@
               <svg viewBox="0 0 24 24"><path d="M16 19v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1"/><circle cx="10" cy="7" r="3"/><path d="M20 19v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </span>
             <span>Fornecedores</span>
+          </button>
+
+          <button class="nav-item" type="button" data-link="usuarios.html">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>
+            </span>
+            <span>Usuários</span>
           </button>
         </nav>
 
@@ -281,7 +288,6 @@
     </div>
 
     <script src="js/feedback.js"></script>
-    <script src="js/session.js"></script>
-    <script src="js/painel.js"></script>
+    <script type="module" src="js/painel.js"></script>
   </body>
 </html>

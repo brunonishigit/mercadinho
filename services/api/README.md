@@ -11,9 +11,9 @@ Este diretório foi preparado para receber a comunicação com o backend em Pyth
 - `types.js` - modelos compartilhados.
 
 ## Padrão de integração
-- Buscar dados via `fetch` para rotas Python.
+- Usar `apiClient` de `client.js` para chamadas às rotas Python. Ele envia o token Bearer, encerra sessões inválidas em respostas 401 e apresenta mensagens amigáveis para respostas 403.
+- Guardar o token em `localStorage.mercadinho_token` e os dados do usuário (`nome`, `login`, `perfil` e `permissoes`) em `localStorage.mercadinho_usuario`.
 - Tratar `loading`, `error` e `empty state` no front-end.
-- Usar autenticação e token quando a API estiver pronta.
 - Manter regras de negócio no backend: FEFO, validação de estoque mínimo e alertas.
 
 ## Pontos de encaixe do projeto

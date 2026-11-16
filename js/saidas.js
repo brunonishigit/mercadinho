@@ -1,3 +1,6 @@
+import apiClient, { getSessionUser, isOwner } from '../services/api/client.js';
+import './session.js';
+
 const tbody = document.getElementById('saidas-table-body');
 const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const exitModal = document.getElementById('exit-modal');
@@ -53,7 +56,7 @@ const updateExitStats = async () => {
   if (!cards.length) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/movimentacoes`);
     const payload = await response.json();
     const items = (Array.isArray(payload?.items) ? payload.items : []).filter((item) => String(item.tipo || '').toUpperCase() === 'SAIDA');
 
@@ -95,7 +98,7 @@ async function loadExitReferenceProducts() {
   if (!exitProductSelect) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/produtos`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/produtos`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
 
@@ -212,7 +215,7 @@ const renderExits = async () => {
   if (!tbody) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/movimentacoes`);
     const payload = await response.json();
     const items = (Array.isArray(payload?.items) ? payload.items : []).filter((item) => {
       const tipo = String(item.tipo || '').toUpperCase();
@@ -243,7 +246,7 @@ const renderExits = async () => {
         <td>R$ ${Number(item.valor_total || item.valor_unitario || item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         <td>${item.observacao || '—'}</td>
         <td class="action-cell">
-          <button class="delete-movement-button" type="button" data-delete-movement="${item.id_movimentacao || ''}" aria-label="Excluir saída">Excluir</button>
+          ${isOwner() ? `<button class="delete-movement-button" type="button" data-delete-movement="${item.id_movimentacao || ''}" aria-label="Excluir saída">Excluir</button>` : ''}
         </td>
       </tr>
     `).join('');
@@ -257,7 +260,7 @@ const renderExits = async () => {
         }
 
         try {
-          const response = await fetch(`${API_BASE_URL}/api/movimentacoes/${movementId}`, { method: 'DELETE' });
+          const response = await apiClient.fetch(`${API_BASE_URL}/api/movimentacoes/${movementId}`, { method: 'DELETE' });
           const data = await response.json();
           if (!response.ok) {
             throw new Error(data.message || 'Não foi possível excluir a saída.');
@@ -292,7 +295,7 @@ exitForm?.addEventListener('submit', async (event) => {
     quantidade: document.getElementById('exit-quantity')?.value || 0,
     motivo: document.getElementById('exit-reason')?.value || '',
     observacao: document.getElementById('exit-observation')?.value?.trim() || '',
-    usuario: localStorage.getItem('mercadinho_usuario') || 'operador'
+    usuario: getSessionUser()?.login || 'operador'
   };
 
   if (!payload.id_produto || !payload.quantidade) {
@@ -301,7 +304,7 @@ exitForm?.addEventListener('submit', async (event) => {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`, {
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/movimentacoes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -333,18 +336,3 @@ setupFilterDropdowns();
 loadExitReferenceProducts();
 renderExits();
 updateExitStats();
-
-document.querySelectorAll('[data-link]').forEach((link) => {
-  link.addEventListener('click', () => {
-    const destino = link.getAttribute('data-link');
-    if (destino) {
-      window.location.href = destino;
-    }
-  });
-});
-
-document.querySelectorAll('[data-return-login]').forEach((button) => {
-  button.addEventListener('click', () => {
-    window.location.href = 'index.html';
-  });
-});

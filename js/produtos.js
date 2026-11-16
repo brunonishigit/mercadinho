@@ -1,3 +1,6 @@
+import apiClient from '../services/api/client.js';
+import './session.js';
+
 const tbody = document.getElementById('produtos-table-body');
 const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const productModal = document.getElementById('product-modal');
@@ -55,7 +58,7 @@ const updateProductsStats = async () => {
   if (!cards.length) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/produtos`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/produtos`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
 
@@ -136,7 +139,7 @@ const closeProductModal = () => {
 
 async function fetchCategories() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/categorias`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/categorias`);
     const payload = await response.json();
     return Array.isArray(payload?.items) ? payload.items : [];
   } catch (error) {
@@ -300,7 +303,7 @@ const renderProducts = async () => {
   if (!tbody) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/produtos`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/produtos`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
     const filteredItems = applyProductFilters(items);
@@ -386,7 +389,7 @@ productForm?.addEventListener('submit', async (event) => {
     const url = isEditing ? `${API_BASE_URL}/api/produtos/${editingProductId}` : `${API_BASE_URL}/api/produtos`;
     const method = isEditing ? 'PUT' : 'POST';
 
-    const response = await fetch(url, {
+    const response = await apiClient.fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -413,7 +416,7 @@ const initializeProductModal = () => {
     if (editingProductId === null) return;
     const confirmed = await showConfirm('Deseja inativar este produto? A ação mantém o histórico e remove o produto da visualização ativa.');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/produtos/${editingProductId}`, {
+      const response = await apiClient.fetch(`${API_BASE_URL}/api/produtos/${editingProductId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -453,18 +456,3 @@ setupFilterDropdowns();
 loadCategories();
 renderProducts();
 updateProductsStats();
-
-document.querySelectorAll('[data-link]').forEach((link) => {
-  link.addEventListener('click', () => {
-    const destino = link.getAttribute('data-link');
-    if (destino) {
-      window.location.href = destino;
-    }
-  });
-});
-
-document.querySelectorAll('[data-return-login]').forEach((button) => {
-  button.addEventListener('click', () => {
-    window.location.href = 'index.html';
-  });
-});

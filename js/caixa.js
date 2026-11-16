@@ -1,3 +1,6 @@
+import apiClient, { getSessionUser } from '../services/api/client.js';
+import './session.js';
+
 const barcodeInput = document.getElementById('barcode-input');
 const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const quantityInput = document.getElementById('quantity-input');
@@ -33,7 +36,7 @@ const fetchJsonWithTimeout = async (url, options = {}, timeoutMs = 20000) => {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, {
+    const response = await apiClient.fetch(url, {
       ...options,
       signal: controller.signal
     });
@@ -44,7 +47,8 @@ const fetchJsonWithTimeout = async (url, options = {}, timeoutMs = 20000) => {
 };
 
 const updateUserTag = () => {
-  const user = localStorage.getItem('mercadinho_usuario') || 'Funcionário';
+  const sessionUser = getSessionUser();
+  const user = sessionUser?.nome || sessionUser?.login || 'Funcionário';
   if (userTag) {
     userTag.textContent = user;
   }
@@ -118,9 +122,9 @@ const renderCart = () => {
         return;
       }
 
-      const usuario = localStorage.getItem('mercadinho_usuario') || 'operador';
+      const usuario = getSessionUser()?.login || 'operador';
       try {
-        const authResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        const authResponse = await apiClient.fetch(`${API_BASE_URL}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ usuario, senha })
@@ -320,9 +324,9 @@ const clearCart = async () => {
     return;
   }
 
-  const usuario = localStorage.getItem('mercadinho_usuario') || 'operador';
+  const usuario = getSessionUser()?.login || 'operador';
   try {
-    const authResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    const authResponse = await apiClient.fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ usuario, senha })
@@ -346,7 +350,7 @@ const finalizeSale = async () => {
     return;
   }
 
-  const usuario = localStorage.getItem('mercadinho_usuario') || 'operador';
+  const usuario = getSessionUser()?.login || 'operador';
 
   try {
     const sales = cart.map((item) => ({
@@ -360,7 +364,7 @@ const finalizeSale = async () => {
 
     const results = [];
     for (const move of sales) {
-      const response = await fetch(`${API_BASE_URL}/api/movimentacoes`, {
+      const response = await apiClient.fetch(`${API_BASE_URL}/api/movimentacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(move)
@@ -408,21 +412,6 @@ paymentButtons.forEach((button) => {
   button.addEventListener('click', () => {
     paymentButtons.forEach((item) => item.classList.toggle('active', item === button));
     selectedMethod = button.dataset.method || 'DINHEIRO';
-  });
-});
-
-document.querySelectorAll('[data-link]').forEach((link) => {
-  link.addEventListener('click', () => {
-    const destino = link.getAttribute('data-link');
-    if (destino) {
-      window.location.href = destino;
-    }
-  });
-});
-
-document.querySelectorAll('[data-return-login]').forEach((button) => {
-  button.addEventListener('click', () => {
-    window.location.href = 'index.html';
   });
 });
 

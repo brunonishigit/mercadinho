@@ -1,3 +1,6 @@
+import apiClient, { getSessionUser } from '../services/api/client.js';
+import './session.js';
+
 const modal = document.getElementById('movement-modal');
 const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
 const openButton = document.querySelector('[data-open-movement]');
@@ -19,8 +22,8 @@ const waitForPanelData = async () => {
 
   if (!painelRequest) {
     painelRequest = Promise.all([
-      fetch(`${API_BASE_URL}/api/produtos`),
-      fetch(`${API_BASE_URL}/api/movimentacoes`)
+      apiClient.fetch(`${API_BASE_URL}/api/produtos`),
+      apiClient.fetch(`${API_BASE_URL}/api/movimentacoes`)
     ]).then(async ([productsResponse, movementsResponse]) => {
       const productsPayload = await productsResponse.json();
       const movementsPayload = await movementsResponse.json();
@@ -118,7 +121,7 @@ async function loadMovementProducts() {
   if (!movementProductSelect) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/produtos`);
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/produtos`);
     const payload = await response.json();
     const items = Array.isArray(payload?.items) ? payload.items : [];
 
@@ -249,7 +252,7 @@ movementForm?.addEventListener('submit', async (event) => {
     id_produto: Number(movementProductSelect?.value || 0),
     quantidade: document.getElementById('movement-quantity')?.value || 0,
     observacao: document.getElementById('movement-observation')?.value?.trim() || '',
-    usuario: localStorage.getItem('mercadinho_usuario') || 'operador'
+    usuario: getSessionUser()?.login || 'operador'
   };
 
   if (!payload.id_produto || !payload.quantidade) {
@@ -258,7 +261,7 @@ movementForm?.addEventListener('submit', async (event) => {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/movimentacoes`, {
+    const response = await apiClient.fetch(`${API_BASE_URL}/api/movimentacoes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -352,18 +355,3 @@ loadMovementProducts();
 setupPanelFilters();
 renderMovementRows();
 updatePanelStats();
-
-document.querySelectorAll('[data-link]').forEach((link) => {
-  link.addEventListener('click', () => {
-    const destino = link.getAttribute('data-link');
-    if (destino) {
-      window.location.href = destino;
-    }
-  });
-});
-
-document.querySelectorAll('[data-return-login]').forEach((button) => {
-  button.addEventListener('click', () => {
-    window.location.href = 'index.html';
-  });
-});

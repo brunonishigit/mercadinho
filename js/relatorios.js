@@ -1,22 +1,8 @@
+import apiClient from '../services/api/client.js';
+import './session.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const API_BASE_URL = window.location.origin || 'http://127.0.0.1:8000';
-  const navButtons = document.querySelectorAll('[data-link]');
-  const logoutButton = document.querySelector('[data-return-login]');
-
-  navButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const target = button.dataset.link;
-      if (target) {
-        window.location.href = target;
-      }
-    });
-  });
-
-  if (logoutButton) {
-    logoutButton.addEventListener('click', () => {
-      window.location.href = 'index.html';
-    });
-  }
 
   const moneyFormat = (value) =>
     new Intl.NumberFormat('pt-BR', {
@@ -131,10 +117,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const renderReports = async () => {
     try {
       const [productsResponse, movementsResponse, alertsResponse, lotsResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/produtos`),
-        fetch(`${API_BASE_URL}/api/movimentacoes`),
-        fetch(`${API_BASE_URL}/api/alertas`),
-        fetch(`${API_BASE_URL}/api/lotes`)
+        apiClient.fetch(`${API_BASE_URL}/api/produtos`),
+        apiClient.fetch(`${API_BASE_URL}/api/movimentacoes`),
+        apiClient.fetch(`${API_BASE_URL}/api/alertas`),
+        apiClient.fetch(`${API_BASE_URL}/api/lotes`)
       ]);
 
       const productsPayload = await productsResponse.json();
